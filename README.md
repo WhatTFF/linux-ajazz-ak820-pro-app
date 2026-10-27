@@ -10,6 +10,28 @@ on plug-in, after suspend and after timezone changes.
 > Unofficial. Not affiliated with AJAZZ or Epomaker. Protocol recovered by the upstream project
 > from the vendor's own WebHID driver — see [PROTOCOL.md](PROTOCOL.md).
 
+## Download
+
+Prebuilt x86_64 packages are attached to every
+[release](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases):
+
+| Format | Distros | Install |
+| --- | --- | --- |
+| `.rpm` | Fedora, RHEL, openSUSE | `sudo dnf install ./ak820-studio-*.rpm` |
+| `.deb` | Debian, Ubuntu, Mint, Pop!\_OS | `sudo apt install ./ak820-studio_*.deb` |
+| `.AppImage` | any glibc distro, no root | `chmod +x ak820-studio_*.AppImage && ./ak820-studio_*.AppImage` |
+
+All three need **WebKitGTK 4.1** and GTK 3 at runtime (already installed on Fedora Workstation
+and Ubuntu 22.04+). The RPM also installs the udev rule and the systemd autosync units; for the
+DEB and AppImage install the udev rule once by hand:
+
+```bash
+sudo install -Dm644 udev/70-ak820.rules /usr/lib/udev/rules.d/70-ak820.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Then unplug and replug the keyboard so the new permissions apply.
+
 ## Status
 
 Working on hardware (fw 1.07, PID `0c45:8009`):
@@ -17,10 +39,10 @@ Working on hardware (fw 1.07, PID `0c45:8009`):
 - `ak820ctl` — `info`, `time`, `upload`, `builtin`, `history list|export|restore|clear`, `raw`
 - `ak820-studio` — Tauri window with the full upstream UI (animations, image/GIF/video, text,
   draw, effects, adjust), native device access, on-disk history
-- clock autosync units (`systemd/`), udev rule, RPM spec, CI
+- clock autosync units (`systemd/`), udev rule, RPM spec, CI, deb/rpm/AppImage releases
 
 Not done yet: video import fallback for missing codecs, GIPHY key in the keyring, tray icon,
-SQLite-backed history, Flatpak, release automation. See [PLAN.md](PLAN.md).
+SQLite-backed history, Flatpak, COPR. See [PLAN.md](PLAN.md).
 
 ## Install (from source, Fedora)
 

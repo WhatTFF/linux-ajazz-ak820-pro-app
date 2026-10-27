@@ -66,6 +66,9 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          # Tags with a suffix (v0.1.0-beta) are published as pre-releases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          name: AK820 Studio ${{ github.ref_name }}
           body: |
             ## Install
 
