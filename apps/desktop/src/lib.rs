@@ -975,6 +975,29 @@ const SELFTEST_SAVE_JS: &str = r#"
 })();
 "#;
 
+/// Update smoke test: real GitHub call, real popup. Needs network.
+const SELFTEST_UPDATE_JS: &str = r#"
+(async () => {
+  const inv = window.__TAURI__.core.invoke;
+  const report = (data) => inv('selftest_report', { report: JSON.stringify(data) });
+  try {
+    const before = await inv('settings_get');
+    const release = await window.__ak820.checkUpdates({ auto: false });
+    const dlg = document.getElementById('upd');
+    const found = {
+      release: release?.tag_name ?? null,
+      prerelease: release?.prerelease ?? null,
+      dialogOpen: dlg.open,
+      action: document.getElementById('updact').textContent,
+      status: document.getElementById('updstatus').textContent,
+      autoCheck: before.check_updates,
+    };
+    dlg.close();
+    report(found);
+  } catch (e) { report({ error: String(e) }); }
+})();
+"#;
+
 /// Settings smoke test: round-trip the whole settings object, then restore it.
 const SELFTEST_SETTINGS_JS: &str = r#"
 (async () => {
@@ -1092,6 +1115,7 @@ pub fn run() {
                     Ok("upload") => SELFTEST_UPLOAD_JS,
                     Ok("save") => SELFTEST_SAVE_JS,
                     Ok("settings") => SELFTEST_SETTINGS_JS,
+                    Ok("update") => SELFTEST_UPDATE_JS,
                     _ => SELFTEST_JS,
                 };
                 std::thread::spawn(move || {

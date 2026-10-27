@@ -121,6 +121,7 @@ AK820_SELFTEST=1 cargo run -p ak820-studio        # UI smoke test: prints what l
 AK820_SELFTEST=upload cargo run -p ak820-studio   # also performs a real 3-frame upload
 AK820_SELFTEST=save cargo run -p ak820-studio     # saves a design to history, then deletes it
 AK820_SELFTEST=settings cargo run -p ak820-studio # settings round-trip + autostart file
+AK820_SELFTEST=update cargo run -p ak820-studio   # real GitHub update check (needs network)
 ```
 
 ## Credits

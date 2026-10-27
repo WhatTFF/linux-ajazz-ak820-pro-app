@@ -942,7 +942,7 @@ $('updcheck').onclick = () => checkUpdates().catch((e) => {
 
 // Automatic: once a few seconds after start, then hourly (the throttle decides).
 // Exposed so the smoke test can drive the dialog without hitting the network.
-window.__ak820 = { ...window.__ak820, newer, showUpdate: openUpdateDialog };
+window.__ak820 = { ...window.__ak820, newer, showUpdate: openUpdateDialog, checkUpdates };
 
 function autoCheck() {
   checkUpdates({ auto: true }).catch(() => {});
