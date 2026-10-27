@@ -1,5 +1,10 @@
 # AK820 Studio
 
+[![CI](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/actions/workflows/ci.yml/badge.svg)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/WhatTFF/linux-ajazz-ak820-pro-app?include_prereleases&label=release&color=ff6a2b)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20x86__64-lightgrey.svg)](#download)
+
 Native Linux app for the **AJAZZ / Epomaker AK820 Pro** keyboard screen — a Rust rewrite of
 [fromagge/ak820-screen](https://github.com/fromagge/ak820-screen) with automatic clock sync.
 
@@ -16,8 +21,13 @@ on plug-in, after suspend and after timezone changes.
 
 ## Download
 
-Prebuilt x86_64 packages are attached to every
-[release](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases):
+[![Download the RPM](https://img.shields.io/badge/download-.rpm-294172?style=for-the-badge&logo=fedora&logoColor=white)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases)
+[![Download the DEB](https://img.shields.io/badge/download-.deb-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases)
+[![Download the AppImage](https://img.shields.io/badge/download-.AppImage-ff6a2b?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases)
+
+Every [release](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases) carries the three
+x86_64 packages plus a `SHA256SUMS` file; the newest release is listed first. You do not have to
+come back here for updates: the app checks for new releases itself and offers to install them.
 
 | Format | Distros | Install |
 | --- | --- | --- |
