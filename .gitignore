@@ -1,0 +1,24 @@
+# Rust / Tauri
+/target
+**/*.rs.bk
+*.pdb
+
+# Tauri frontend build output
+apps/desktop/ui/dist/
+apps/desktop/gen/
+node_modules/
+package-lock.json
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Local artifacts
+*.rpm
+*.tar.gz
+*.AppImage
+*.flatpak
+dist/
