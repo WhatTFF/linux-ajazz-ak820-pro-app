@@ -813,6 +813,11 @@ const SELFTEST_JS: &str = r#"
     bodyMode: document.body.dataset.mode ?? null,
     saveHandler: !!document.getElementById('savehist')?.onclick,
     linkGuard: document.documentElement.dataset.linkGuard === '1',
+    // The updater must not offer a prerelease as newer than its own release.
+    vercmp: [['v0.1.2-beta', 'v0.1.2', -1], ['v0.1.2', 'v0.1.2-beta', 1],
+             ['v0.1.2-beta', 'v0.1.1-beta', 1], ['v0.1.10-beta', 'v0.1.9', 1],
+             ['v0.1.0-beta', 'v0.1.0-beta', 0]]
+      .every(([a, b, want]) => Math.sign(window.__ak820.newer(a, b)) === want),
     externalLinks: document.querySelectorAll('a[href^="https://"]').length,
     repoLinks: [...document.querySelectorAll('a[href^="https://github.com/"]')]
       .filter((a) => a.href.includes('WhatTFF/linux-ajazz-ak820-pro-app')).length,

@@ -777,17 +777,34 @@ $('settingsform').addEventListener('submit', async (e) => {
 const REPO = 'WhatTFF/linux-ajazz-ak820-pro-app';
 let latest = null;
 
-const parseVer = (tag) => tag.replace(/^v/, '').split(/[.+-]/).map((p) => (isNaN(+p) ? p : +p));
+// Semver ordering, because release tags are `v0.1.2-beta`: a release beats a
+// prerelease of the same version, and `0.1.10` beats `0.1.9` (not string order).
+const parseVer = (tag) => {
+  const [core, pre = ''] = tag.replace(/^v/, '').split('+')[0].split(/-(.*)/s);
+  return { core: core.split('.').map((n) => Number(n) || 0), pre: pre ? pre.split('.') : [] };
+};
+const isNum = (v) => /^\d+$/.test(v);
 function newer(a, b) {
   const x = parseVer(a), y = parseVer(b);
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    const p = x[i] ?? 0, q = y[i] ?? 0;
-    if (p === q) continue;
-    if (typeof p === 'string' || typeof q === 'string') return String(p) > String(q) ? 1 : -1;
-    return p > q ? 1 : -1;
+  for (let i = 0; i < Math.max(x.core.length, y.core.length); i++) {
+    const p = x.core[i] ?? 0, q = y.core[i] ?? 0;
+    if (p !== q) return p > q ? 1 : -1;
+  }
+  if (!x.pre.length && !y.pre.length) return 0;
+  if (!x.pre.length) return 1;    // 0.1.2 is newer than 0.1.2-beta
+  if (!y.pre.length) return -1;
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i++) {
+    const p = x.pre[i], q = y.pre[i];
+    if (p === undefined) return -1;   // 1.2-alpha < 1.2-alpha.1
+    if (q === undefined) return 1;
+    if (isNum(p) && isNum(q)) { if (+p !== +q) return +p > +q ? 1 : -1; continue; }
+    if (isNum(p)) return -1;          // numeric identifiers sort below alphanumeric
+    if (isNum(q)) return 1;
+    if (p !== q) return p > q ? 1 : -1;
   }
   return 0;
 }
+window.__ak820 = { ...window.__ak820, newer };
 
 async function checkUpdates() {
   const out = $('updstatus');
@@ -802,7 +819,8 @@ async function checkUpdates() {
     latest = releases.find((x) => newer(x.tag_name, `v${info.version}`) > 0) ?? null;
     if (!latest) { out.textContent = `You are up to date (v${info.version}).`; $('updgo').hidden = true; return; }
     const asset = latest.assets.find((a) => a.name.endsWith(assetExt(info.package)));
-    out.textContent = `${latest.name || latest.tag_name} is available (you have v${info.version}).`;
+    out.textContent = `${latest.name || latest.tag_name} is available (you have v${info.version})`
+      + `${latest.prerelease ? ' — pre-release' : ''}.`;
     $('updnotes').textContent = (latest.body || '').split('\n').slice(0, 6).join('\n');
     $('updnotes').hidden = !latest.body;
     $('updgo').hidden = !asset;
