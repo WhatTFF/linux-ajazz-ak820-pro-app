@@ -82,13 +82,24 @@ jobs:
             | Debian / Ubuntu | `sudo apt install ./ak820-studio_*.deb` |
             | Any distro (portable) | `chmod +x ak820-studio_*.AppImage && ./ak820-studio_*.AppImage` |
 
-            The RPM installs the udev rule and the systemd autosync units. For the
-            DEB and AppImage, install the udev rule manually:
+            The RPM and DEB also install `ak820ctl`, the udev rule and the systemd
+            autosync units, then reload udev for you. Turn autosync on with:
 
             ```bash
-            sudo cp udev/70-ak820.rules /usr/lib/udev/rules.d/
+            systemctl --user enable --now ak820-clock.timer
+            systemctl --user enable ak820-resume.service
+            ```
+
+            The AppImage is portable and cannot install anything system-wide, so it
+            needs the udev rule once (otherwise `/dev/hidraw*` stays root-only) and
+            ships no `ak820ctl`:
+
+            ```bash
+            sudo install -Dm644 udev/70-ak820.rules /usr/lib/udev/rules.d/70-ak820.rules
             sudo udevadm control --reload && sudo udevadm trigger
             ```
 
-            All formats need WebKitGTK 4.1 and GStreamer at runtime (both ship with
+            Unplug and replug the keyboard after installing the rule.
+
+            All formats need WebKitGTK 4.1 and GTK 3 at runtime (both ship with
             Fedora Workstation and Ubuntu 22.04+).
