@@ -104,7 +104,7 @@ pub fn parse_payload(payload: &[u8], limit: usize) -> Result<Vec<FrameOwned>, Er
 
 /// Milliseconds → the protocol's 2 ms units, clamped to `1..=255`.
 const fn delay_units(delay_ms: u16) -> u8 {
-    let units = (delay_ms as u32 + 1) / 2;
+    let units = (delay_ms as u32).div_ceil(2);
     if units < 1 {
         1
     } else if units > 255 {

@@ -5,7 +5,7 @@ mod decode;
 use ak820_store::history;
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ak820_device::{Device, DeviceLock};
 use ak820_proto::{CivilTime, Frame, MAX_FRAMES, build_payload, parse_payload};
@@ -289,7 +289,7 @@ fn cmd_restore_latest(quiet: bool) -> Result<(), String> {
 
 #[allow(clippy::too_many_arguments)]
 fn cmd_upload(
-    file: &PathBuf,
+    file: &Path,
     fit: Fit,
     bg: &str,
     delay: Option<u16>,
@@ -400,7 +400,7 @@ fn cmd_history(command: HistoryCmd) -> Result<(), String> {
     Ok(())
 }
 
-fn export_gif(payload: &[u8], out: &PathBuf) -> Result<(), String> {
+fn export_gif(payload: &[u8], out: &Path) -> Result<(), String> {
     use image::Delay;
     use image::codecs::gif::{GifEncoder, Repeat};
 
@@ -422,7 +422,7 @@ fn export_gif(payload: &[u8], out: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn cmd_payload(file: &PathBuf, out: &PathBuf) -> Result<(), String> {
+fn cmd_payload(file: &Path, out: &Path) -> Result<(), String> {
     let source = decode::load(file, Fit::Cover, [0, 0, 0, 255], None)?;
     let delays: Vec<u16> = source.iter().map(|f| f.delay_ms).collect();
     let packed = decode::to_rgb565(&source);

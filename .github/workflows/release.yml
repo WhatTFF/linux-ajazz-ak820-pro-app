@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libssl-dev \
+            patchelf rpm dpkg fakeroot file desktop-file-utils libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build bundles (deb, rpm, AppImage)
+        working-directory: apps/desktop
+        env:
+          # AppImage tooling runs from a read-only mount on CI runners.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: cargo tauri build --bundles deb,rpm,appimage
+
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          VERSION="$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(p["version"] for p in d["packages"] if p["name"]=="ak820-studio"))')"
+          mkdir -p dist
+          find target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -print
+          cp target/release/bundle/deb/*.deb "dist/ak820-studio_${VERSION}_amd64.deb"
+          cp target/release/bundle/rpm/*.rpm "dist/ak820-studio-${VERSION}-1.x86_64.rpm"
+          cp target/release/bundle/appimage/*.AppImage "dist/ak820-studio_${VERSION}_amd64.AppImage"
+          chmod +x dist/*.AppImage
+          ( cd dist && sha256sum * > SHA256SUMS )
+          ls -lh dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ak820-studio-linux-x86_64
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Install
+
+            | Format | Command |
+            | --- | --- |
+            | Fedora / RHEL | `sudo dnf install ./ak820-studio-*.rpm` |
+            | Debian / Ubuntu | `sudo apt install ./ak820-studio_*.deb` |
+            | Any distro (portable) | `chmod +x ak820-studio_*.AppImage && ./ak820-studio_*.AppImage` |
+
+            The RPM installs the udev rule and the systemd autosync units. For the
+            DEB and AppImage, install the udev rule manually:
+
+            ```bash
+            sudo cp udev/70-ak820.rules /usr/lib/udev/rules.d/
+            sudo udevadm control --reload && sudo udevadm trigger
+            ```
+
+            All formats need WebKitGTK 4.1 and GStreamer at runtime (both ship with
+            Fedora Workstation and Ubuntu 22.04+).

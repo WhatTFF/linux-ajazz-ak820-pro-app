@@ -26,7 +26,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["rpm"],
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
     "category": "Utility",
     "shortDescription": "Screen studio for the AJAZZ / Epomaker AK820 Pro keyboard",
     "longDescription": "Put GIFs, images, video, text, drawings and procedural animations on the AK820 Pro's 128x128 screen, and keep its clock in sync automatically.",
@@ -36,6 +40,25 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.png"
-    ]
+    ],
+    "publisher": "WhatTFF",
+    "homepage": "https://github.com/WhatTFF/linux-ajazz-ak820-pro-app",
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "webkit2gtk4.1",
+          "gtk3"
+        ]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   }
 }
