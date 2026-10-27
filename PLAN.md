@@ -293,6 +293,17 @@ Deviations from the plan above, all deliberate or deferred:
   webview loaded (and optionally performs an upload) and exits. CI uses it to prove the UI and the
   Rust bridge work without a keyboard.
 
+### Hardware notes found after v0.1.0
+
+- **The 2.4 GHz dongle bridges the clock.** PID `0xfefe` exposes five hidraw nodes: keyboard,
+  consumer control, and vendor pages `0xff60` (32-byte reports) and `0xff59`. Page `0xff60` is a
+  config interface: `GET_DEVICE_INFO` and `SET_TIME` both work through the dongle, reporting the
+  keyboard's own PID (`0x8009`) and firmware. There is no bulk interface, so pictures still need
+  the cable. `discovery` therefore accepts `0xfefe` for the config role only.
+- **Tray icons need libayatana-appindicator/appindicator3** at build time; GNOME hides legacy
+  trays without an extension, so `start_minimized` only hides the window when the tray was
+  actually created.
+
 ## 8. Risks
 
 | Risk | Impact | Mitigation |

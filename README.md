@@ -39,9 +39,17 @@ Working on hardware (fw 1.07, PID `0c45:8009`):
 - `ak820ctl` — `info`, `time`, `upload`, `builtin`, `history list|export|restore|clear`, `raw`
 - `ak820-studio` — Tauri window with the full upstream UI (animations, image/GIF/video, text,
   draw, effects, adjust), native device access, on-disk history
+- **Settings window**: start at login, start hidden in the tray, keep running in the tray,
+  sync on start (optionally quit right after), sync on plug-in, re-sync on a timer, restore the
+  last image on plug-in
+- **Tray icon**: open, sync now, quit
+- **In-app updates**: checks GitHub releases, downloads the package, and replaces the AppImage
+  in place (RPM/DEB downloads land in `~/Downloads` with the install command shown)
+- **Dongle-aware**: on the 2.4 GHz dongle the clock still syncs and the UI explains that pictures
+  need the cable; designs can always be saved to history
 - clock autosync units (`systemd/`), udev rule, RPM spec, CI, deb/rpm/AppImage releases
 
-Not done yet: video import fallback for missing codecs, GIPHY key in the keyring, tray icon,
+Not done yet: video import fallback for missing codecs, GIPHY key in the keyring,
 SQLite-backed history, Flatpak, COPR. See [PLAN.md](PLAN.md).
 
 ## Install (from source, Fedora)
@@ -68,6 +76,12 @@ ak820ctl time                 # push the clock once
 
 ## Clock autosync
 
+Two ways, pick one:
+
+- **In the app** (default): ⚙ Settings → sync on start, sync on plug-in, and an optional
+  "re-sync every N seconds" while the app runs, including when it sits in the tray.
+- **With systemd**: the units below, for machines where the app is not running.
+
 ```bash
 mkdir -p ~/.config/systemd/user
 cp systemd/ak820-*.service systemd/ak820-clock.timer ~/.config/systemd/user/
@@ -77,7 +91,7 @@ systemctl --user enable ak820-resume.service
 ```
 
 The timer pushes the clock every 60 s while the keyboard is connected (it exits silently when it
-is not), `ak820-resume.service` covers suspend/resume, and the udev rule starts
+is not, and when `autosync_clock` is switched off in the app), `ak820-resume.service` covers suspend/resume, and the udev rule starts
 `ak820-connect.service` on plug-in, which also re-uploads the newest history entry when
 `restore_on_connect` is enabled in `~/.local/share/ak820/settings.json`.
 
@@ -96,9 +110,11 @@ packaging/            RPM spec, .desktop, AppStream metadata
 ## Tests
 
 ```bash
-cargo test --workspace                       # pure logic, no hardware needed
-AK820_SELFTEST=1 cargo run -p ak820-studio   # UI smoke test: prints what loaded, then exits
-AK820_SELFTEST=upload cargo run -p ak820-studio  # also performs a real 3-frame upload
+cargo test --workspace                            # pure logic, no hardware needed
+AK820_SELFTEST=1 cargo run -p ak820-studio        # UI smoke test: prints what loaded, then exits
+AK820_SELFTEST=upload cargo run -p ak820-studio   # also performs a real 3-frame upload
+AK820_SELFTEST=save cargo run -p ak820-studio     # saves a design to history, then deletes it
+AK820_SELFTEST=settings cargo run -p ak820-studio # settings round-trip + autostart file
 ```
 
 ## Credits

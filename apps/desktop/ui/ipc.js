@@ -16,8 +16,10 @@ export const supported = () => true;
 export class Keyboard {
   constructor(status) {
     this.status = status;
-    this.cfg = status.has_config ? true : null;
-    this.bulk = status.connected ? true : null;
+    // `cfg` gates clock sync, `bulk` gates sending pictures.
+    this.cfg = status.can_sync ? true : null;
+    this.bulk = status.can_upload ? true : null;
+    this.mode = status.mode || (status.connected ? 'usb' : 'none');
     this.name = status.name || 'AK820 Pro';
   }
 
@@ -38,7 +40,9 @@ export class Keyboard {
   async info() {
     const s = await invoke('device_info');
     this.status = s;
-    this.cfg = s.has_config ? true : null;
+    this.cfg = s.can_sync ? true : null;
+    this.bulk = s.can_upload ? true : null;
+    this.mode = s.mode || this.mode;
     return {
       firmware: s.firmware,
       battery: s.battery,
@@ -59,6 +63,9 @@ export class Keyboard {
 
   // frames: [{ data: ImageData(128x128), delay: ms }]
   async upload(frames, { onProgress, signal, name } = {}) {
+    if (!this.bulk) {
+      throw new Error('the screen only answers on the USB cable — switch the keyboard to wired mode, or use "Save to history"');
+    }
     const payload = buildPayload(frames);
     const channel = new core.Channel();
     channel.onmessage = (percent) => onProgress?.(percent / 100);
@@ -108,5 +115,10 @@ export function parsePayload(payload, limit = Infinity) {
 
 export const payloadBytes = (n) => 256 + n * W * H * 2;
 
+// Store a design without sending it (works with no keyboard attached).
+export async function saveHistory(payload, name) {
+  return invoke('history_save', { payload: Array.from(payload), name });
+}
+
 // Exposed for the smoke test and for debugging from the web inspector.
-window.__ak820 = { Keyboard, buildPayload, parsePayload };
+window.__ak820 = { Keyboard, buildPayload, parsePayload, saveHistory };

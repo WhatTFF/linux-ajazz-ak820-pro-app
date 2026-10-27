@@ -47,6 +47,8 @@ version = "0.1.0"
 dependencies = [
  "ak820-proto",
  "chrono",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

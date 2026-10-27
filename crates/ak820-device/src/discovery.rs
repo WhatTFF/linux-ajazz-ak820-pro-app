@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use ak820_proto::{
-    BULK_PAGE, CONFIG_PAGES, FALLBACK_BULK_REPORT, FALLBACK_CONFIG_REPORT, PIDS, VID,
+    BULK_PAGE, CONFIG_PAGES, DONGLE_PID, FALLBACK_BULK_REPORT, FALLBACK_CONFIG_REPORT, PIDS, VID,
 };
 
 /// One AK820 hidraw node and its capabilities.
@@ -47,6 +47,48 @@ pub fn discover() -> Vec<IfaceInfo> {
     discover_in(Path::new("/sys/class/hidraw"))
 }
 
+/// How the keyboard is attached, as far as USB can tell.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Presence {
+    /// Keyboard on the cable: it exposes the screen interfaces.
+    pub wired: bool,
+    /// The 2.4 GHz dongle is plugged in.
+    pub dongle: bool,
+}
+
+impl Presence {
+    /// Nothing AK820-shaped is attached.
+    pub const fn is_empty(&self) -> bool {
+        !self.wired && !self.dongle
+    }
+}
+
+/// Look for any AK820 USB device, including one that has no screen interface.
+pub fn presence() -> Presence {
+    presence_in(Path::new("/sys/class/hidraw"))
+}
+
+fn presence_in(root: &Path) -> Presence {
+    let mut out = Presence::default();
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return out;
+    };
+    for node in entries.filter_map(|e| e.ok().map(|e| e.path())) {
+        let Some((vid, pid)) = read_ids(&node) else {
+            continue;
+        };
+        if vid != VID {
+            continue;
+        }
+        if pid == DONGLE_PID {
+            out.dongle = true;
+        } else if PIDS.contains(&pid) {
+            out.wired = true;
+        }
+    }
+    out
+}
+
 fn discover_in(root: &Path) -> Vec<IfaceInfo> {
     let Ok(entries) = std::fs::read_dir(root) else {
         return Vec::new();
@@ -59,7 +101,10 @@ fn discover_in(root: &Path) -> Vec<IfaceInfo> {
         let Some((vid, pid)) = read_ids(&node) else {
             continue;
         };
-        if vid != VID || !PIDS.contains(&pid) {
+        // The 2.4 GHz dongle bridges the config channel (device info, clock) but
+        // has no bulk interface, so it is accepted here and simply never matches
+        // the bulk role below.
+        if vid != VID || (!PIDS.contains(&pid) && pid != DONGLE_PID) {
             continue;
         }
         let descriptor = std::fs::read(node.join("device/report_descriptor")).unwrap_or_default();
@@ -168,6 +213,37 @@ mod tests {
     fn empty_descriptor_is_harmless() {
         assert_eq!(parse_descriptor(&[]), (None, 0));
         assert_eq!(parse_descriptor(&[0x06]), (None, 0));
+    }
+
+    #[test]
+    fn presence_separates_cable_from_dongle() {
+        let root = std::env::temp_dir().join(format!("ak820-presence-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let node = |name: &str, pid: &str| {
+            let dir = root.join(name).join("device");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("uevent"),
+                format!("HID_ID=0003:00000C45:{pid}\nHID_NAME=AK820\n"),
+            )
+            .unwrap();
+        };
+
+        node("hidraw3", "0000FEFE");
+        assert_eq!(
+            presence_in(&root),
+            Presence {
+                wired: false,
+                dongle: true
+            }
+        );
+
+        node("hidraw5", "00008009");
+        let both = presence_in(&root);
+        assert!(both.wired && both.dongle);
+
+        std::fs::remove_dir_all(&root).unwrap();
+        assert!(presence_in(&root).is_empty());
     }
 
     #[test]

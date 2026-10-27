@@ -13,7 +13,7 @@ mod iface;
 mod lock;
 #[allow(unsafe_code)]
 mod sys;
-pub use discovery::{IfaceInfo, Interfaces, find, parse_descriptor};
+pub use discovery::{IfaceInfo, Interfaces, Presence, find, parse_descriptor, presence};
 pub use error::Error;
 pub use iface::Iface;
 pub use lock::DeviceLock;

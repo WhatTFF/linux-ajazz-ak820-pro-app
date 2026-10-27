@@ -138,6 +138,18 @@ textarea { font: inherit; color: var(--ink); background: var(--field); border: 1
 .tools { display: grid; gap: 12px; }
 .spaced { justify-content: space-between; margin-bottom: 14px; }
 .spaced h2 { margin: 0; }
+
+.icon { padding: 7px 11px; font-size: 15px; line-height: 1; }
+dialog.settings { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: inherit; width: min(580px, 92vw); padding: 22px 24px; }
+dialog.settings::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.settings h2 { margin: 0 0 4px; }
+dialog.settings .hint { margin: 0 0 16px; }
+dialog.settings fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 14px; padding: 8px 14px 12px; }
+dialog.settings legend { padding: 0 6px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+dialog.settings label.check { display: flex; gap: 10px; align-items: center; margin: 9px 0; font-size: 14px; }
+dialog.settings label.inline { display: flex; gap: 8px; align-items: center; margin: 9px 0; font-size: 14px; flex-wrap: wrap; }
+dialog.settings input[type=number] { width: 86px; }
+dialog.settings .row { justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -145,16 +157,19 @@ textarea { font: inherit; color: var(--ink); background: var(--field); border: 1
   <header>
     <div class="brand">
       <h1>AK820 Screen Studio</h1>
-      <p>Put GIFs, video, text, <span class="rb">rainbows</span> and drawings on the AK820 Pro's screen. No driver, no install.</p>
+      <p>Put GIFs, video, text, <span class="rb">rainbows</span> and drawings on the AK820 Pro's screen. No driver, no browser, no account.</p>
     </div>
     <div class="conn">
       <span id="pill" class="pill"><span class="dot"></span><span id="pilltext">Not connected</span></span>
       <button id="connect" class="primary">Connect keyboard</button>
+      <button id="opts" class="icon" title="Settings" aria-label="Settings">⚙</button>
     </div>
   </header>
 
-  <div id="nohid" class="banner" hidden>
-    Your browser doesn't support WebHID. Open this page in <strong>Chrome</strong>, <strong>Edge</strong>, <strong>Brave</strong> or <strong>Opera</strong> on a desktop computer. You can still design here, but you can't send.
+  <div id="modebanner" class="banner" hidden>
+    <strong>2.4 GHz dongle connected.</strong> The clock still syncs over the dongle, but the screen itself only
+    answers on the USB cable, so sending pictures is paused. Everything you design can still be saved to history
+    (kept on this computer). Switch the keyboard to <strong>wired</strong> and plug in the <strong>USB-C cable</strong> to send.
   </div>
 
   <div class="grid">
@@ -164,6 +179,7 @@ textarea { font: inherit; color: var(--ink); background: var(--field); border: 1
         <div class="meta"><span id="framesinfo">No image yet</span><span id="sizeinfo"></span></div>
         <div class="actions">
           <button id="upload" class="primary" disabled>Send to keyboard</button>
+          <button id="savehist" disabled>Save to history</button>
           <progress id="prog" value="0" max="1" hidden></progress>
           <button id="cancel" hidden>Cancel</button>
           <div id="msg" class="msg" role="status"></div>
@@ -357,38 +373,91 @@ textarea { font: inherit; color: var(--ink); background: var(--field); border: 1
       <section class="panel">
         <h2>Help</h2>
         <details>
-          <summary>The keyboard won't show up</summary>
+          <summary>The keyboard isn't detected</summary>
           <ol>
-            <li>Flip the keyboard's mode switch to <strong>wired</strong> and use the <strong>USB-C cable</strong>. The 2.4 GHz dongle and Bluetooth can't reach the screen.</li>
-            <li>In the browser's pop-up, pick the <strong>AK820 / 820PRO</strong> entry (not "2.4G Dongle").</li>
+            <li>Pictures need the <strong>USB-C cable</strong> in <strong>wired</strong> mode: the 2.4 GHz dongle carries key presses and the clock, but not the screen.</li>
+            <li>The dongle is fine for the clock: syncing works over 2.4 GHz. If the app says "dongle · clock only", that is expected.</li>
             <li>Close the official AJAZZ / Epomaker driver if it's running. Only one program can talk to the screen at a time.</li>
+            <li>If the app says the device is not permitted, the udev rule is missing. The .rpm and .deb install it; otherwise run the command below once.</li>
           </ol>
         </details>
         <details>
-          <summary>Linux: "Connect" fails or the keyboard isn't listed</summary>
-          <p>Linux doesn't let browsers open keyboards by default. Install this rule once, then unplug and replug the keyboard:</p>
-<pre><code>echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="800a|8009|fefe", TAG+="uaccess"' \
-  | sudo tee /etc/udev/rules.d/70-ak820.rules
+          <summary>Linux: permission denied on /dev/hidraw</summary>
+          <p>Install the rule once, then unplug and replug the keyboard:</p>
+<pre><code>sudo install -Dm644 udev/70-ak820.rules /usr/lib/udev/rules.d/70-ak820.rules
 sudo udevadm control --reload && sudo udevadm trigger</code></pre>
+          <p>The rule grants the logged-in user access to the AK820's hidraw nodes (vendor <code>0c45</code>, products <code>8009</code>, <code>800a</code> and <code>fefe</code>).</p>
         </details>
         <details>
           <summary>Limits</summary>
-          <p><strong>Pictures last until you unplug.</strong> On current firmware (1.16) the keyboard shows what you send only while it stays plugged in on the cable in wired mode. Unplugging it or switching to 2.4 GHz or Bluetooth brings back its built-in screen. The official AJAZZ tools behave the same way. History (above) lets you put it back in one click.</p>
-          <p>The screen is 128 × 128 pixels with 16-bit colour. The keyboard stores up to about 140 frames (it reports its exact limit after you connect). Sending is roughly 30 KB/s, so a full 140-frame animation takes about 2½ minutes. Keep the cable plugged in until it finishes. Effects on a still image make a short loop (24 frames by default), which sends in under a minute.</p>
+          <p><strong>Pictures last until you unplug.</strong> The keyboard shows what you send only while it stays on the cable in wired mode. Unplugging it, or switching to 2.4 GHz or Bluetooth, brings back its built-in screen. The official AJAZZ tools behave the same way. History (above) keeps your designs on this computer, so putting one back is one click.</p>
+          <p>The screen is 128 × 128 pixels with 16-bit colour. The keyboard reports its exact frame limit after you connect (up to about 255 frames on current firmware). Sending runs at roughly 30 KB/s, so a long animation takes a couple of minutes: keep the cable plugged in until it finishes. Effects on a still image make a short loop (24 frames by default), which sends in under a minute.</p>
         </details>
         <details>
           <summary>Can I see what's on my keyboard right now?</summary>
-          <p>Only if you sent it from here. The keyboard has no way to send its picture back, so this page keeps its own copy of everything you send (History, above). History is stored in this browser only. Clearing site data or switching browsers starts it empty. Anything you sent with the official driver isn't in it.</p>
+          <p>Only what this app sent or saved. The keyboard cannot send its picture back, so the app keeps its own copy of every design in its history folder. That folder survives restarts and is shared with <code>ak820ctl</code>. Anything sent with the official driver isn't in it.</p>
+        </details>
+        <details>
+          <summary>Clock sync and autostart</summary>
+          <p>Open <strong>⚙ Settings</strong> to start the app at login, keep it in the tray, sync the clock when the app starts or the keyboard is plugged in, and re-sync on a timer while it runs. The clock is pushed from this computer, so no network is involved.</p>
+          <p>If you prefer systemd over the app, the packages also install <code>ak820-clock.timer</code>; enable it with <code>systemctl --user enable --now ak820-clock.timer</code>. Use one or the other, not both.</p>
         </details>
         <details>
           <summary>Is this safe?</summary>
-          <p>This page only uses the same commands as the official driver to set the screen picture and clock. It never touches firmware. Everything happens in your browser, and your files never leave your computer.</p>
+          <p>It sends the same commands as the official driver to set the screen picture and the clock. It never touches firmware. Everything happens locally, and your files never leave your computer.</p>
         </details>
       </section>
     </main>
   </div>
 
-  <footer>Unofficial tool, not affiliated with AJAZZ or Epomaker. Works with AK820 Pro (USB 0C45:800A / 8009). <a href="https://github.com/fromagge/ak820-screen">Source on GitHub</a>.</footer>
+  <dialog id="settings" class="settings" aria-labelledby="settings-title">
+    <form method="dialog" id="settingsform">
+      <h2 id="settings-title">Settings</h2>
+      <p class="hint">Stored in <code id="datadir">~/.local/share/ak820</code>, shared with <code>ak820ctl</code>.</p>
+
+      <fieldset>
+        <legend>Startup</legend>
+        <label class="check"><input type="checkbox" id="set-autostart"> Start AK820 Studio when I log in</label>
+        <label class="check"><input type="checkbox" id="set-startmin"> Start hidden in the tray</label>
+        <label class="check"><input type="checkbox" id="set-tray"> Keep running in the tray when I close the window</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Clock</legend>
+        <label class="check"><input type="checkbox" id="set-syncstart"> Sync the clock when the app starts</label>
+        <label class="check"><input type="checkbox" id="set-quitafter"> …and quit immediately after that sync</label>
+        <label class="check"><input type="checkbox" id="set-syncconnect"> Sync the clock when the keyboard is plugged in</label>
+        <label class="check"><input type="checkbox" id="set-restore"> Put the newest history entry back on plug-in</label>
+        <label class="inline">Re-sync while the app runs every
+          <input type="number" id="set-interval" min="0" max="3600" step="5" value="0"> seconds (0 = off)
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Systemd</legend>
+        <label class="check"><input type="checkbox" id="set-autosync"> Let <code>ak820-clock.timer</code> sync in the background</label>
+        <p class="hint" style="margin:6px 0 0">Only useful if you enabled the timer with <code>systemctl --user enable --now ak820-clock.timer</code>. Leave it off if the app syncs on its own.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Updates</legend>
+        <p class="hint" style="margin:0 0 8px">Installed: <span id="appver">…</span></p>
+        <div class="row">
+          <button id="updcheck" type="button">Check for updates</button>
+          <button id="updgo" type="button" class="primary" hidden>Download</button>
+        </div>
+        <p id="updstatus" class="hint" style="margin:8px 0 0"></p>
+        <pre id="updnotes" class="hint" hidden style="margin:6px 0 0;white-space:pre-wrap;font-family:inherit"></pre>
+      </fieldset>
+
+      <div class="row">
+        <button id="settings-cancel" value="cancel" formnovalidate>Cancel</button>
+        <button id="settings-save" class="primary" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>Unofficial app, not affiliated with AJAZZ or Epomaker. Works with the AK820 Pro (USB 0C45:800A / 8009). UI derived from <a href="https://github.com/fromagge/ak820-screen">fromagge/ak820-screen</a> (MIT). <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app">Source on GitHub</a>.</footer>
 </div>
 
 <script type="module" src="app.js"></script>

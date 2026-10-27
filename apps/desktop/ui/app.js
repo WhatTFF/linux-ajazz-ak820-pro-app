@@ -1,4 +1,4 @@
-import { Keyboard, listen, invoke, W, H, payloadBytes, parsePayload } from './ipc.js';
+import { Keyboard, listen, invoke, saveHistory, buildPayload, W, H, payloadBytes, parsePayload } from './ipc.js';
 import { GENERATORS, defaults, renderGenerator } from './gen.js';
 import { fitText, drawLines, font, motion, post, isAnimated } from './fx.js';
 
@@ -460,6 +460,8 @@ function render() {
 
 function updateMeta() {
   const n = output.length;
+  // Saving to history never needs the keyboard: that is the whole point.
+  $('savehist').disabled = !n;
   if (!n) { $('framesinfo').textContent = 'No image yet'; $('sizeinfo').textContent = ''; $('upload').disabled = true; return; }
   const send = Math.min(n, frameLimit());
   const secs = Math.ceil(payloadBytes(send) / BYTES_PER_SEC);
@@ -467,7 +469,8 @@ function updateMeta() {
   $('framesinfo').textContent = `${n} frame${n > 1 ? 's' : ''}` + (over ? ` · only the first ${send} will fit` : '');
   $('framesinfo').style.color = over ? 'var(--warn)' : '';
   $('sizeinfo').textContent = `~${secs < 60 ? secs + ' s' : Math.ceil(secs / 60) + ' min'} to send`;
-  $('upload').disabled = !kb || !!uploading;
+  // Sending needs the cable: the dongle has no screen interface.
+  $('upload').disabled = !kb || !kb.bulk || !!uploading;
 }
 
 let anim = 0;
@@ -566,16 +569,29 @@ $('gmore').onclick = () => searchGifs(true);
 // --- device -------------------------------------------------------------------------
 async function attach(k) {
   kb = k;
-  if (!kb) { pill('Not connected'); $('devpanel').hidden = true; updateMeta(); return; }
-  pill(kb.name, 'ok');
+  if (!kb) {
+    pill('Not connected');
+    $('devpanel').hidden = true;
+    $('modebanner').hidden = true;
+    $('connect').textContent = 'Connect keyboard';
+    updateMeta();
+    return;
+  }
+  const status = kb.status || {};
+  document.body.dataset.mode = String(status.mode);
+  const dongle = status.mode === 'dongle';
+  pill(dongle ? 'Dongle · clock only' : kb.name, dongle ? 'busy' : 'ok');
   $('connect').textContent = 'Reconnect';
   $('devpanel').hidden = false;
+  $('modebanner').hidden = !dongle;
   try {
     const info = await kb.info();
-    if (info) {
+    if (info && info.firmware) {
       maxFrames = info.maxFrames;
       $('devinfo').innerHTML = `<span>Firmware ${info.firmware}</span><span>Battery ${info.battery}%${info.charging ? ' ⚡' : ''}</span><span>Up to ${info.maxFrames} frames</span>`;
       route(mode === 'text' ? 'text' : mode === 'anim' ? 'anim' : 'render');
+    } else if (dongle) {
+      $('devinfo').textContent = 'Connected over the 2.4 GHz dongle: clock works, pictures need the cable.';
     }
   } catch (e) { console.warn(e); }
   $('synctime').disabled = !kb.cfg;
@@ -637,6 +653,20 @@ $('setbuiltin').onclick = async () => {
   try { await kb.showBuiltIn(+$('builtin').value); msg('Built-in animation selected.', 'ok'); } catch (e) { msg(e.message, 'err'); }
 };
 
+$('savehist').onclick = async () => {
+  const frames = output.slice(0, frameLimit());
+  if (!frames.length) return;
+  try {
+    await saveHistory(buildPayload(frames), currentName || 'Image');
+    msg('Saved to history. Open it any time, and send it when the keyboard is on the cable.', 'ok');
+    renderHistory();
+  } catch (e) { msg(`Could not save: ${e.message ?? e}`, 'err'); }
+};
+
+// The Rust side syncs on plug-in, on a timer and from the tray; reflect it.
+listen('clock-synced', () => { if (!uploading) msg('Clock synced.', 'ok'); });
+listen('clock-error', (e) => { if (!uploading) msg(`Clock sync failed: ${e.payload}`, 'err'); });
+
 // --- history (on disk, shared with ak820ctl) ---------------------------------------
 let selected = null;
 
@@ -654,7 +684,7 @@ async function renderHistory() {
   $('histclear').hidden = !items.length;
   if (!items.length) {
     const p = document.createElement('p'); p.className = 'empty';
-    p.textContent = 'Nothing sent yet. Your first upload will show up here.';
+    p.textContent = 'Nothing saved yet. Every design you send or save is kept here.';
     box.append(p); return;
   }
   items.forEach((it, i) => {
@@ -697,6 +727,121 @@ $('histclear').onclick = async () => {
   if (!confirm('Delete all saved history from this computer?')) return;
   await invoke('history_clear');
   renderHistory();
+};
+
+
+// --- settings ------------------------------------------------------------------------
+const SETTING_BOXES = {
+  start_at_login: 'set-autostart',
+  start_minimized: 'set-startmin',
+  minimize_to_tray: 'set-tray',
+  sync_on_start: 'set-syncstart',
+  quit_after_start_sync: 'set-quitafter',
+  sync_on_connect: 'set-syncconnect',
+  restore_on_connect: 'set-restore',
+  autosync_clock: 'set-autosync',
+};
+
+async function fillSettings() {
+  const s = await invoke('settings_get');
+  for (const [key, id] of Object.entries(SETTING_BOXES)) $(id).checked = !!s[key];
+  $('set-interval').value = s.sync_interval_secs ?? 0;
+  const info = await invoke('app_info').catch(() => null);
+  if (info) {
+    $('datadir').textContent = info.data_dir;
+    $('appver').textContent = `v${info.version} (${info.package})`;
+  }
+}
+
+$('opts').onclick = async () => {
+  try { await fillSettings(); } catch (e) { console.warn(e); }
+  $('settings').showModal();
+};
+
+$('settingsform').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (e.submitter?.value === 'cancel') { $('settings').close(); return; }
+  const s = await invoke('settings_get');
+  for (const [key, id] of Object.entries(SETTING_BOXES)) s[key] = $(id).checked;
+  s.sync_interval_secs = Math.max(0, Math.min(3600, Math.round(+$('set-interval').value || 0)));
+  try {
+    await invoke('settings_set', { settings: s });
+    $('settings').close();
+    msg('Settings saved.', 'ok');
+  } catch (err) {
+    msg(`Could not save settings: ${err.message ?? err}`, 'err');
+  }
+});
+
+// --- updates ---------------------------------------------------------------------------
+const REPO = 'WhatTFF/linux-ajazz-ak820-pro-app';
+let latest = null;
+
+const parseVer = (tag) => tag.replace(/^v/, '').split(/[.+-]/).map((p) => (isNaN(+p) ? p : +p));
+function newer(a, b) {
+  const x = parseVer(a), y = parseVer(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const p = x[i] ?? 0, q = y[i] ?? 0;
+    if (p === q) continue;
+    if (typeof p === 'string' || typeof q === 'string') return String(p) > String(q) ? 1 : -1;
+    return p > q ? 1 : -1;
+  }
+  return 0;
+}
+
+async function checkUpdates() {
+  const out = $('updstatus');
+  out.textContent = 'Checking GitHub…';
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=10`, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!r.ok) throw new Error(`GitHub answered ${r.status}`);
+    const releases = (await r.json()).filter((x) => !x.draft);
+    const info = await invoke('app_info');
+    latest = releases.find((x) => newer(x.tag_name, `v${info.version}`) > 0) ?? null;
+    if (!latest) { out.textContent = `You are up to date (v${info.version}).`; $('updgo').hidden = true; return; }
+    const asset = latest.assets.find((a) => a.name.endsWith(assetExt(info.package)));
+    out.textContent = `${latest.name || latest.tag_name} is available (you have v${info.version}).`;
+    $('updnotes').textContent = (latest.body || '').split('\n').slice(0, 6).join('\n');
+    $('updnotes').hidden = !latest.body;
+    $('updgo').hidden = !asset;
+    $('updgo').textContent = info.package === 'appimage' ? 'Update and restart' : 'Download package';
+    $('updgo').dataset.url = asset?.browser_download_url || '';
+    $('updgo').dataset.name = asset?.name || '';
+  } catch (e) {
+    out.textContent = `Could not check for updates: ${e.message ?? e}`;
+    $('updgo').hidden = true;
+  }
+}
+
+const assetExt = (pkg) => (pkg === 'appimage' ? '.AppImage' : pkg === 'deb' ? '.deb' : '.rpm');
+
+$('updcheck').onclick = () => checkUpdates();
+
+$('updgo').onclick = async () => {
+  const btn = $('updgo');
+  const { url, name } = btn.dataset;
+  if (!url) return;
+  btn.disabled = true;
+  const out = $('updstatus');
+  try {
+    const info = await invoke('app_info');
+    if (info.package === 'appimage') {
+      out.textContent = 'Downloading and replacing this AppImage…';
+      await invoke('update_replace_appimage', { url });
+      out.textContent = 'Updated. Quit and start the app again to use the new version.';
+    } else {
+      out.textContent = 'Downloading…';
+      const path = await invoke('update_download', { url, name });
+      out.textContent = info.package === 'deb'
+        ? `Saved to ${path}. Install it with: sudo apt install "${path}"`
+        : `Saved to ${path}. Install it with: sudo dnf install "${path}"`;
+    }
+  } catch (e) {
+    out.textContent = `Update failed: ${e.message ?? e}`;
+  }
+  btn.disabled = false;
 };
 
 // --- start ----------------------------------------------------------------------------

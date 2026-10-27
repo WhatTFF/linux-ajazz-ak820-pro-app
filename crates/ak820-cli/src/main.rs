@@ -218,6 +218,10 @@ fn cmd_info() -> Result<(), String> {
 }
 
 fn cmd_time(print: bool, quiet: bool) -> Result<(), String> {
+    // The GUI can switch the systemd timer off without touching systemd itself.
+    if quiet && !ak820_store::settings::Settings::load().autosync_clock {
+        return Ok(());
+    }
     let now = chrono::Local::now();
     let time = CivilTime {
         year: now.year() as u16,
