@@ -740,6 +740,7 @@ const SETTING_BOXES = {
   sync_on_connect: 'set-syncconnect',
   restore_on_connect: 'set-restore',
   autosync_clock: 'set-autosync',
+  check_updates: 'set-updcheck',
 };
 
 async function fillSettings() {
@@ -775,7 +776,6 @@ $('settingsform').addEventListener('submit', async (e) => {
 
 // --- updates ---------------------------------------------------------------------------
 const REPO = 'WhatTFF/linux-ajazz-ak820-pro-app';
-let latest = null;
 
 // Semver ordering, because release tags are `v0.1.2-beta`: a release beats a
 // prerelease of the same version, and `0.1.10` beats `0.1.9` (not string order).
@@ -804,63 +804,151 @@ function newer(a, b) {
   }
   return 0;
 }
-window.__ak820 = { ...window.__ak820, newer };
+const CHECK_EVERY = 12 * 3600 * 1000;
+let updPending = null;
 
-async function checkUpdates() {
-  const out = $('updstatus');
-  out.textContent = 'Checking GitHub…';
+// Webview storage, so the 12-hour throttle survives restarts.
+const store = {
+  get(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+  },
+};
+
+const assetExt = (pkg) => (pkg === 'appimage' ? '.AppImage' : pkg === 'deb' ? '.deb' : '.rpm');
+
+async function checkUpdates({ auto = false } = {}) {
+  const info = await invoke('app_info');
+  if (auto) {
+    const settings = await invoke('settings_get');
+    if (!settings.check_updates) return null;
+    if (Date.now() - store.get('upd.last', 0) < CHECK_EVERY) return null;
+  }
+  store.set('upd.last', Date.now());
+
+  const status = $('updstatus');
+  if (!auto) status.textContent = 'Checking GitHub…';
+  let releases;
   try {
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=10`, {
       headers: { Accept: 'application/vnd.github+json' },
     });
     if (!r.ok) throw new Error(`GitHub answered ${r.status}`);
-    const releases = (await r.json()).filter((x) => !x.draft);
-    const info = await invoke('app_info');
-    latest = releases.find((x) => newer(x.tag_name, `v${info.version}`) > 0) ?? null;
-    if (!latest) { out.textContent = `You are up to date (v${info.version}).`; $('updgo').hidden = true; return; }
-    const asset = latest.assets.find((a) => a.name.endsWith(assetExt(info.package)));
-    out.textContent = `${latest.name || latest.tag_name} is available (you have v${info.version})`
-      + `${latest.prerelease ? ' — pre-release' : ''}.`;
-    $('updnotes').textContent = (latest.body || '').split('\n').slice(0, 6).join('\n');
-    $('updnotes').hidden = !latest.body;
-    $('updgo').hidden = !asset;
-    $('updgo').textContent = info.package === 'appimage' ? 'Update and restart' : 'Download package';
-    $('updgo').dataset.url = asset?.browser_download_url || '';
-    $('updgo').dataset.name = asset?.name || '';
+    releases = (await r.json()).filter((x) => !x.draft);
   } catch (e) {
-    out.textContent = `Could not check for updates: ${e.message ?? e}`;
-    $('updgo').hidden = true;
+    // Offline is not an error worth a popup.
+    if (!auto) status.textContent = `Could not check for updates: ${e.message ?? e}`;
+    return null;
   }
+
+  const release = releases.find((x) => newer(x.tag_name, `v${info.version}`) > 0) ?? null;
+  if (!release) {
+    if (!auto) status.textContent = `You are up to date (v${info.version}).`;
+    return null;
+  }
+  if (auto && store.get('upd.skip', '') === release.tag_name) return null;
+  if (!auto) status.textContent = '';
+  openUpdateDialog(release, info);
+  return release;
 }
 
-const assetExt = (pkg) => (pkg === 'appimage' ? '.AppImage' : pkg === 'deb' ? '.deb' : '.rpm');
+function openUpdateDialog(release, info) {
+  const asset = release.assets.find((a) => a.name.endsWith(assetExt(info.package)));
+  updPending = { release, info, asset, stage: 'offer' };
+  $('updversion').textContent = `${release.name || release.tag_name}`
+    + `${release.prerelease ? ' (pre-release)' : ''} — you have v${info.version}.`;
+  $('updnotes').textContent = (release.body || '').split('\n').slice(0, 10).join('\n');
+  $('updnotes').hidden = !release.body;
+  $('updstate').textContent = asset ? '' : `This release has no ${assetExt(info.package)} file: use the release page.`;
+  $('updcmdwrap').hidden = true;
+  $('updcopy').hidden = true;
+  const act = $('updact');
+  act.hidden = !asset;
+  act.disabled = false;
+  act.textContent = info.package === 'appimage' ? 'Update and restart' : 'Download and install';
+  $('upd').showModal();
+}
 
-$('updcheck').onclick = () => checkUpdates();
-
-$('updgo').onclick = async () => {
-  const btn = $('updgo');
-  const { url, name } = btn.dataset;
-  if (!url) return;
+$('updact').onclick = async () => {
+  const p = updPending;
+  if (!p?.asset) return;
+  const btn = $('updact');
   btn.disabled = true;
-  const out = $('updstatus');
   try {
-    const info = await invoke('app_info');
-    if (info.package === 'appimage') {
-      out.textContent = 'Downloading and replacing this AppImage…';
-      await invoke('update_replace_appimage', { url });
-      out.textContent = 'Updated. Quit and start the app again to use the new version.';
-    } else {
-      out.textContent = 'Downloading…';
-      const path = await invoke('update_download', { url, name });
-      out.textContent = info.package === 'deb'
-        ? `Saved to ${path}. Install it with: sudo apt install "${path}"`
-        : `Saved to ${path}. Install it with: sudo dnf install "${path}"`;
+    if (p.stage === 'ready') {
+      // Second press: the package is on disk, let polkit ask for the password.
+      $('updstate').textContent = 'Waiting for the password prompt…';
+      $('updstate').textContent = await invoke('update_install', { path: p.path });
+      btn.hidden = true;
+      $('updcopy').hidden = true;
+      return;
     }
+    if (p.info.package === 'appimage') {
+      $('updstate').textContent = 'Downloading and replacing this AppImage…';
+      await invoke('update_replace_appimage', { url: p.asset.browser_download_url });
+      $('updstate').textContent = 'Updated. Quit and start the app again to use the new version.';
+      btn.hidden = true;
+      return;
+    }
+    $('updstate').textContent = 'Downloading…';
+    const done = await invoke('update_download', {
+      url: p.asset.browser_download_url,
+      name: p.asset.name,
+    });
+    p.stage = 'ready';
+    p.path = done.path;
+    $('updcmd').textContent = done.command;
+    $('updcmdwrap').hidden = false;
+    $('updcopy').hidden = false;
+    $('updstate').textContent = `Saved to ${done.path}. Install it now, or copy the command and run it yourself.`;
+    btn.textContent = 'Install now';
   } catch (e) {
-    out.textContent = `Update failed: ${e.message ?? e}`;
+    $('updstate').textContent = `Update failed: ${e.message ?? e}`;
+  } finally {
+    btn.disabled = false;
   }
-  btn.disabled = false;
 };
+
+$('updcopy').onclick = async () => {
+  const text = $('updcmd').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    $('updstate').textContent = 'Command copied. Paste it into a terminal.';
+  } catch {
+    // No clipboard permission: select it so Ctrl+C works.
+    const range = document.createRange();
+    range.selectNodeContents($('updcmd'));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    $('updstate').textContent = 'Select the command and press Ctrl+C.';
+  }
+};
+
+$('updpage').onclick = () => invoke('open_url', {
+  url: `https://github.com/${REPO}/releases/tag/${updPending?.release.tag_name ?? ''}`,
+}).catch(() => {});
+
+$('updlater').onclick = () => {
+  if (updPending) store.set('upd.skip', updPending.release.tag_name);
+  $('upd').close();
+};
+
+$('updcheck').onclick = () => checkUpdates().catch((e) => {
+  $('updstatus').textContent = `Could not check for updates: ${e.message ?? e}`;
+});
+
+// Automatic: once a few seconds after start, then hourly (the throttle decides).
+// Exposed so the smoke test can drive the dialog without hitting the network.
+window.__ak820 = { ...window.__ak820, newer, showUpdate: openUpdateDialog };
+
+function autoCheck() {
+  checkUpdates({ auto: true }).catch(() => {});
+}
+setTimeout(autoCheck, 4000);
+setInterval(autoCheck, 3600 * 1000);
 
 // --- start ----------------------------------------------------------------------------
 buildGens();

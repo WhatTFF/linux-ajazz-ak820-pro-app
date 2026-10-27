@@ -47,8 +47,10 @@ Working on hardware (fw 1.07, PID `0c45:8009`):
   sync on start (optionally quit right after), sync on plug-in, re-sync on a timer, restore the
   last image on plug-in
 - **Tray icon**: open, sync now, quit
-- **In-app updates**: checks GitHub releases, downloads the package, and replaces the AppImage
-  in place (RPM/DEB downloads land in `~/Downloads` with the install command shown)
+- **In-app updates**: checks GitHub releases quietly every 12 hours (toggleable) and pops up a
+  window when something newer exists. The AppImage replaces itself in place; RPM/DEB download to
+  `~/Downloads`, then either install through the desktop's polkit password prompt or show the exact
+  `sudo dnf`/`sudo apt` command to copy. "Later" silences that version until the next one.
 - **Dongle-aware**: on the 2.4 GHz dongle the clock still syncs and the UI explains that pictures
   need the cable; designs can always be saved to history
 - clock autosync units (`systemd/`), udev rule, RPM spec, CI, deb/rpm/AppImage releases

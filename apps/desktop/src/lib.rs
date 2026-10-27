@@ -81,6 +81,7 @@ pub struct SettingsDto {
     pub sync_on_start: bool,
     pub quit_after_start_sync: bool,
     pub sync_interval_secs: u64,
+    pub check_updates: bool,
 }
 
 impl From<Settings> for SettingsDto {
@@ -96,6 +97,7 @@ impl From<Settings> for SettingsDto {
             sync_on_start: value.sync_on_start,
             quit_after_start_sync: value.quit_after_start_sync,
             sync_interval_secs: value.sync_interval_secs,
+            check_updates: value.check_updates,
         }
     }
 }
@@ -113,6 +115,7 @@ impl From<SettingsDto> for Settings {
             sync_on_start: value.sync_on_start,
             quit_after_start_sync: value.quit_after_start_sync,
             sync_interval_secs: value.sync_interval_secs,
+            check_updates: value.check_updates,
         }
     }
 }
@@ -507,16 +510,99 @@ fn curl(url: &str, out: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The command a user can paste into a terminal instead of using the prompt.
+fn install_command(kind: &str, path: &Path) -> String {
+    let path = path.display();
+    match kind {
+        "deb" => format!("sudo apt install -y \"{path}\""),
+        _ => format!("sudo dnf install -y \"{path}\""),
+    }
+}
+
+/// A downloaded package, plus how to install it by hand.
+#[derive(Clone, Debug, Serialize)]
+pub struct DownloadedPackage {
+    pub path: String,
+    pub command: String,
+}
+
 /// Download a release package next to the user's other downloads.
 #[tauri::command]
-fn update_download(url: String, name: String) -> Result<String, String> {
+fn update_download(url: String, name: String) -> Result<DownloadedPackage, String> {
     let dir = download_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let target = dir.join(sanitize_file_name(&name));
     let tmp = target.with_extension("part");
     curl(&url, &tmp)?;
     std::fs::rename(&tmp, &target).map_err(|e| format!("{}: {e}", target.display()))?;
-    Ok(target.display().to_string())
+    Ok(DownloadedPackage {
+        command: install_command(&package_kind(), &target),
+        path: target.display().to_string(),
+    })
+}
+
+/// Is this a package this build is allowed to hand to the system installer?
+fn is_installable(path: &Path) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default();
+    if ext != "rpm" && ext != "deb" {
+        return false;
+    }
+    // Only files we downloaded ourselves, so a stray command cannot install
+    // something from anywhere else on disk.
+    let (Ok(file), Ok(dir)) = (path.canonicalize(), download_dir().canonicalize()) else {
+        return false;
+    };
+    file.starts_with(dir) && file.is_file()
+}
+
+/// Install a downloaded package through polkit, which shows the desktop's own
+/// password prompt. The terminal command stays available in the UI either way.
+#[tauri::command]
+async fn update_install(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || install_blocking(Path::new(&path)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn install_blocking(path: &Path) -> Result<String, String> {
+    if !is_installable(path) {
+        return Err(format!("not a downloaded .rpm or .deb: {}", path.display()));
+    }
+    let kind = package_kind();
+    let mut cmd = std::process::Command::new("pkexec");
+    match kind.as_str() {
+        "deb" => cmd.args(["apt-get", "install", "-y"]),
+        _ => cmd.args(["dnf", "install", "-y"]),
+    };
+    let out = cmd.arg(path).output().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!(
+                "pkexec is not installed. Run: {}",
+                install_command(&kind, path)
+            )
+        } else {
+            format!("pkexec: {e}")
+        }
+    })?;
+    if out.status.success() {
+        Ok("Installed. Quit and start AK820 Studio again to use the new version.".into())
+    } else if out.status.code() == Some(126) || out.status.code() == Some(127) {
+        Err(format!(
+            "The password prompt was dismissed, so nothing was installed. Run: {}",
+            install_command(&kind, path)
+        ))
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        let tail: String = err.lines().rev().take(4).collect::<Vec<_>>().join("\n");
+        Err(format!(
+            "The installer failed ({}). {}",
+            out.status,
+            tail.trim()
+        ))
+    }
 }
 
 /// Replace this AppImage in place. Linux lets us rename over a running binary;
@@ -799,7 +885,7 @@ fn show_window(app: &tauri::AppHandle) {
 
 /// Injected by `AK820_SELFTEST=1` to prove the UI loaded and can reach Rust.
 const SELFTEST_JS: &str = r#"
-(() => {
+(async () => {
   const text = (id) => document.getElementById(id)?.textContent?.trim() ?? null;
   const info = {
     title: document.title,
@@ -814,13 +900,21 @@ const SELFTEST_JS: &str = r#"
     saveHandler: !!document.getElementById('savehist')?.onclick,
     linkGuard: document.documentElement.dataset.linkGuard === '1',
     // The updater must not offer a prerelease as newer than its own release.
-    vercmp: [['v0.1.2-beta', 'v0.1.2', -1], ['v0.1.2', 'v0.1.2-beta', 1],
-             ['v0.1.2-beta', 'v0.1.1-beta', 1], ['v0.1.10-beta', 'v0.1.9', 1],
-             ['v0.1.0-beta', 'v0.1.0-beta', 0]]
-      .every(([a, b, want]) => Math.sign(window.__ak820.newer(a, b)) === want),
+    vercmp: (() => {
+      try {
+        return [['v0.1.2-beta', 'v0.1.2', -1], ['v0.1.2', 'v0.1.2-beta', 1],
+                ['v0.1.2-beta', 'v0.1.1-beta', 1], ['v0.1.10-beta', 'v0.1.9', 1],
+                ['v0.1.0-beta', 'v0.1.0-beta', 0]]
+          .every(([a, b, want]) => Math.sign(window.__ak820.newer(a, b)) === want);
+      } catch { return 'missing'; }
+    })(),
     externalLinks: document.querySelectorAll('a[href^="https://"]').length,
     repoLinks: [...document.querySelectorAll('a[href^="https://github.com/"]')]
       .filter((a) => a.href.includes('WhatTFF/linux-ajazz-ak820-pro-app')).length,
+    errors: window.__errs ?? [],
+    updDialog: !!document.getElementById('upd'),
+    updAuto: (await window.__TAURI__.core.invoke('settings_get')).check_updates === true,
+    updButtons: ['updact', 'updcopy', 'updlater', 'updpage'].every((id) => !!document.getElementById(id)),
     pill: text('pilltext'),
     mode: document.getElementById('modebanner')?.hidden === false ? 'banner' : 'no-banner',
     msg: text('msg'),
@@ -891,6 +985,21 @@ const SELFTEST_SETTINGS_JS: &str = r#"
     await inv('settings_set', { settings: { ...before, start_at_login: true, minimize_to_tray: true, sync_interval_secs: 30 } });
     const after = await inv('settings_get');
     const info = await inv('app_info');
+    // Drive the update popup with a fake release: no network involved.
+    window.__ak820.showUpdate(
+      { tag_name: 'v9.9.9', name: 'AK820 Studio v9.9.9', body: 'notes', prerelease: true,
+        assets: [{ name: 'ak820-studio-9.9.9.rpm', browser_download_url: 'https://github.com/x' }] },
+      { ...info, package: 'rpm' },
+    );
+    const dlg = document.getElementById('upd');
+    const popup = {
+      open: dlg.open,
+      action: document.getElementById('updact').textContent,
+      version: document.getElementById('updversion').textContent,
+      notes: !document.getElementById('updnotes').hidden,
+      command: document.getElementById('updcmdwrap').hidden === true,
+    };
+    dlg.close();
     // The link opener must never hand a non-web URL to the desktop.
     const refused = await inv('open_url', { url: 'javascript:alert(1)' }).then(() => false, () => true);
     await inv('settings_set', { settings: before });
@@ -901,6 +1010,7 @@ const SELFTEST_SETTINGS_JS: &str = r#"
       data_dir: info.data_dir,
       restored: (await inv('settings_get')).start_at_login === before.start_at_login,
       refusedBadUrl: refused,
+      popup,
     });
   } catch (e) { report({ error: String(e) }); }
 })();
@@ -1016,6 +1126,7 @@ pub fn run() {
             settings_set,
             app_info,
             update_download,
+            update_install,
             update_replace_appimage,
             open_url,
             selftest_report,
@@ -1027,6 +1138,21 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn install_command_matches_the_package() {
+        let rpm = install_command("rpm", Path::new("/home/u/Downloads/a.rpm"));
+        assert_eq!(rpm, "sudo dnf install -y \"/home/u/Downloads/a.rpm\"");
+        let deb = install_command("deb", Path::new("/home/u/Downloads/a.deb"));
+        assert_eq!(deb, "sudo apt install -y \"/home/u/Downloads/a.deb\"");
+    }
+
+    #[test]
+    fn only_downloaded_packages_are_installable() {
+        assert!(!is_installable(Path::new("/etc/passwd")));
+        assert!(!is_installable(Path::new("/tmp/evil.rpm")));
+        assert!(!is_installable(Path::new("/home/u/Downloads/nope.deb")));
+    }
 
     #[test]
     fn only_web_pages_can_be_opened() {

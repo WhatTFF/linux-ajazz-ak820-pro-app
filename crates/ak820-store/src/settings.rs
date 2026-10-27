@@ -32,6 +32,8 @@ pub struct Settings {
     pub quit_after_start_sync: bool,
     /// Re-sync every N seconds while the app runs. `0` disables it.
     pub sync_interval_secs: u64,
+    /// Look for a new release in the background and offer it.
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -47,6 +49,7 @@ impl Default for Settings {
             sync_on_start: true,
             quit_after_start_sync: false,
             sync_interval_secs: 0,
+            check_updates: true,
         }
     }
 }
@@ -95,6 +98,7 @@ mod tests {
             sync_on_start: false,
             quit_after_start_sync: true,
             sync_interval_secs: 300,
+            check_updates: false,
         };
         let json = serde_json::to_string(&settings).unwrap();
         let parsed: Settings = serde_json::from_str(&json).unwrap();
@@ -110,6 +114,10 @@ mod tests {
         assert!(parsed.sync_on_start);
         assert_eq!(parsed.sync_interval_secs, 0);
         assert!(parsed.giphy_key.is_empty());
+        assert!(
+            parsed.check_updates,
+            "update checks are on unless turned off"
+        );
     }
 
     #[test]

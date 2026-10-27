@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>
+  // Keep early script errors visible to the smoke test: a broken module would
+  // otherwise just make the window look dead.
+  window.__errs = [];
+  const note = (msg) => window.__errs.length < 20 && window.__errs.push(String(msg));
+  addEventListener('error', (e) => note(`${e.message} @ ${e.filename || ''}:${e.lineno}`));
+  addEventListener('unhandledrejection', (e) => note(`rejection: ${e.reason}`));
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AK820 Screen Studio</title>
@@ -404,7 +412,8 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
         </details>
         <details>
           <summary>Updates, source code and bugs</summary>
-          <p>Every release is at <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases">github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases</a>. <strong>⚙ Settings → Updates</strong> checks that page, and on the AppImage it replaces the file in place; RPM and DEB builds download the package to <code>~/Downloads</code> and show the one-line install command.</p>
+          <p>Every release is at <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases">github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases</a>. The app checks that page quietly every 12 hours and pops up a window when there is something newer; <strong>⚙ Settings → Updates</strong> has a <em>Check now</em> button and a switch to turn the automatic check off.</p>
+          <p>From that window the <strong>AppImage</strong> replaces itself in place. <strong>RPM and DEB</strong> builds download the package to <code>~/Downloads</code> first, then offer <em>Install now</em>, which asks for your password through the desktop's normal polkit prompt. Prefer the terminal? The exact command (<code>sudo dnf install -y …</code> or <code>sudo apt install -y …</code>) is shown next to a <em>Copy command</em> button, and <em>Later</em> keeps the app quiet about that version until the next one.</p>
           <p>The source is at <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app">github.com/WhatTFF/linux-ajazz-ak820-pro-app</a>; report bugs there, and include the output of <code>ak820ctl info</code> plus your keyboard's firmware version. Links open in your browser, never inside this window.</p>
         </details>
         <details>
@@ -447,12 +456,11 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
       <fieldset>
         <legend>Updates</legend>
         <p class="hint" style="margin:0 0 8px">Installed: <span id="appver">…</span></p>
-        <div class="row">
-          <button id="updcheck" type="button">Check for updates</button>
-          <button id="updgo" type="button" class="primary" hidden>Download</button>
+        <label class="check"><input type="checkbox" id="set-updcheck"> Check for updates automatically (every 12 hours)</label>
+        <div class="row" style="justify-content:flex-start">
+          <button id="updcheck" type="button">Check now</button>
         </div>
         <p id="updstatus" class="hint" style="margin:8px 0 0"></p>
-        <pre id="updnotes" class="hint" hidden style="margin:6px 0 0;white-space:pre-wrap;font-family:inherit"></pre>
       </fieldset>
 
       <div class="row">
@@ -460,6 +468,20 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
         <button id="settings-save" class="primary" value="save">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="upd" class="settings" aria-labelledby="upd-title">
+    <h2 id="upd-title">Update available</h2>
+    <p class="hint" id="updversion" style="margin:0 0 10px"></p>
+    <pre id="updnotes" class="hint" hidden style="margin:0 0 12px;white-space:pre-wrap;font-family:inherit;max-height:180px;overflow:auto"></pre>
+    <p id="updstate" class="hint" style="margin:0 0 10px"></p>
+    <pre id="updcmdwrap" hidden style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;overflow:auto"><code id="updcmd"></code></pre>
+    <div class="row">
+      <button id="updpage" type="button">Release page</button>
+      <button id="updcopy" type="button" hidden>Copy command</button>
+      <button id="updlater" type="button">Later</button>
+      <button id="updact" type="button" class="primary">Update</button>
+    </div>
   </dialog>
 
   <footer>Unofficial app, not affiliated with AJAZZ or Epomaker. Works with the AK820 Pro (USB 0C45:800A / 8009).
