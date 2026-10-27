@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "identifier": "io.github.whattff.Ak820Studio",
   "build": {
-    "frontendDist": "ui"
+    "frontendDist": "ui",
+    "beforeBuildCommand": "cargo build --release -p ak820-cli"
   },
   "app": {
     "withGlobalTauri": true,
@@ -45,16 +46,30 @@
     "homepage": "https://github.com/WhatTFF/linux-ajazz-ak820-pro-app",
     "linux": {
       "deb": {
-        "depends": [
-          "libwebkit2gtk-4.1-0",
-          "libgtk-3-0"
-        ]
+        "files": {
+          "/usr/bin/ak820ctl": "../../target/release/ak820ctl",
+          "/usr/lib/udev/rules.d/70-ak820.rules": "../../udev/70-ak820.rules",
+          "/usr/lib/systemd/user/ak820-clock.service": "../../systemd/ak820-clock.service",
+          "/usr/lib/systemd/user/ak820-clock.timer": "../../systemd/ak820-clock.timer",
+          "/usr/lib/systemd/user/ak820-connect.service": "../../systemd/ak820-connect.service",
+          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service"
+        },
+        "postInstallScript": "../../packaging/linux/postinst.sh"
       },
       "rpm": {
         "depends": [
           "webkit2gtk4.1",
           "gtk3"
-        ]
+        ],
+        "files": {
+          "/usr/bin/ak820ctl": "../../target/release/ak820ctl",
+          "/usr/lib/udev/rules.d/70-ak820.rules": "../../udev/70-ak820.rules",
+          "/usr/lib/systemd/user/ak820-clock.service": "../../systemd/ak820-clock.service",
+          "/usr/lib/systemd/user/ak820-clock.timer": "../../systemd/ak820-clock.timer",
+          "/usr/lib/systemd/user/ak820-connect.service": "../../systemd/ak820-connect.service",
+          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service"
+        },
+        "postInstallScript": "../../packaging/linux/postinst.sh"
       },
       "appimage": {
         "bundleMediaFramework": false
