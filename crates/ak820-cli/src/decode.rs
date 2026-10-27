@@ -79,7 +79,9 @@ fn decode_gif(path: &Path) -> Result<Vec<(RgbaImage, u16)>, String> {
         .into_iter()
         .map(|frame| {
             let (num, den) = frame.delay().numer_denom_ms();
-            let ms = if den == 0 { 100 } else { (num / den).max(1) };
+            // A zero denominator (or zero delay) means "use the default"; GIF frames
+            // never go faster than 1 ms here.
+            let ms = num.checked_div(den).map_or(100, |v| v.max(1));
             let ms = ms.min(u16::MAX as u32) as u16;
             (frame.into_buffer(), ms)
         })

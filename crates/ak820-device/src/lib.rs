@@ -18,6 +18,7 @@ pub use error::Error;
 pub use iface::Iface;
 pub use lock::DeviceLock;
 
+use std::path::Path;
 use std::time::Duration;
 
 use ak820_proto::{
@@ -31,6 +32,10 @@ pub const TIMEOUT: Duration = Duration::from_millis(500);
 pub const UPLOAD_TIMEOUT: Duration = Duration::from_millis(2000);
 /// How many times a packet is retried before giving up.
 pub const RETRIES: u32 = 3;
+
+/// Node path and output-report size of one interface, as reported by
+/// [`Device::interfaces`].
+pub type InterfaceSummary<'a> = (&'a Path, usize);
 
 /// An opened keyboard, with whichever interfaces are present.
 pub struct Device {
@@ -67,12 +72,7 @@ impl Device {
     }
 
     /// Paths and report sizes of the interfaces in use, for `ak820ctl info`.
-    pub fn interfaces(
-        &self,
-    ) -> (
-        Option<(&std::path::Path, usize)>,
-        Option<(&std::path::Path, usize)>,
-    ) {
+    pub fn interfaces(&self) -> (Option<InterfaceSummary<'_>>, Option<InterfaceSummary<'_>>) {
         (
             self.config.as_ref().map(|i| (i.path(), i.report_len())),
             self.bulk.as_ref().map(|i| (i.path(), i.report_len())),

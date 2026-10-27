@@ -118,7 +118,8 @@ const fn delay_units(delay_ms: u16) -> u8 {
 mod tests {
     use super::*;
 
-    fn frame(fill: u8, delay_ms: u16) -> Vec<u8> {
+    /// Solid frame; the delay is passed at the call site, not baked in here.
+    fn frame(fill: u8, _delay_ms: u16) -> Vec<u8> {
         vec![fill; FRAME_BYTES]
     }
 
