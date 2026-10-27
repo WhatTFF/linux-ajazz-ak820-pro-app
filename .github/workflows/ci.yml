@@ -20,7 +20,8 @@ jobs:
           dnf install -y --setopt=install_weak_deps=False \
             git gcc gcc-c++ make pkgconf-pkg-config \
             rust cargo rustfmt clippy \
-            gtk3-devel webkit2gtk4.1-devel libsoup3-devel librsvg2-devel openssl-devel
+            gtk3-devel webkit2gtk4.1-devel libsoup3-devel librsvg2-devel openssl-devel \
+            xorg-x11-server-Xvfb
 
       - uses: actions/checkout@v4
 
@@ -39,6 +40,13 @@ jobs:
       - name: UI smoke test
         run: |
           # The UI must load and reach the Rust side even with no keyboard attached.
-          AK820_SELFTEST=1 timeout 40 ./target/release/ak820-studio 2>&1 | tee selftest.log
+          # A container has no display, so run it on a virtual X server.
+          set -o pipefail
+          AK820_SELFTEST=1 \
+          WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+          LIBGL_ALWAYS_SOFTWARE=1 \
+            timeout 90 xvfb-run -a -s "-screen 0 1280x1024x24" \
+              ./target/release/ak820-studio 2>&1 | tee selftest.log
           grep -q '"tauri":true' selftest.log
           grep -q '"generators":10' selftest.log
