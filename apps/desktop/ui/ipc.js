@@ -120,5 +120,17 @@ export async function saveHistory(payload, name) {
   return invoke('history_save', { payload: Array.from(payload), name });
 }
 
+// A webview is not a browser: following an <a href> would replace this whole UI
+// with the target page and leave no way back. Hand web links to the desktop.
+document.addEventListener('click', (e) => {
+  const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
+  if (!a) return;
+  const href = a.href;
+  if (!/^https?:\/\//i.test(href)) return;
+  e.preventDefault();
+  invoke('open_url', { url: href }).catch((err) => console.warn(`could not open ${href}`, err));
+});
+document.documentElement.dataset.linkGuard = '1';
+
 // Exposed for the smoke test and for debugging from the web inspector.
 window.__ak820 = { Keyboard, buildPayload, parsePayload, saveHistory };

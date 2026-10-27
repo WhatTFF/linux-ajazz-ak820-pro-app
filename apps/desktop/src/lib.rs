@@ -381,6 +381,43 @@ fn settings_set(settings: SettingsDto) -> Result<(), String> {
     Ok(())
 }
 
+// --- links -------------------------------------------------------------------------
+
+/// Only web pages may be handed to the desktop, and only well-formed ones: the
+/// argument goes straight to a process spawn, so no control characters, spaces
+/// or other schemes.
+fn is_openable_url(url: &str) -> bool {
+    let rest = match url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+    {
+        Some(rest) => rest,
+        None => return false,
+    };
+    let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    !host.is_empty()
+        && rest.len() <= 2048
+        && !url
+            .chars()
+            .any(|c| c.is_whitespace() || c.is_control() || c == '"' || c == '\\')
+}
+
+/// Open a link in the user's browser instead of navigating this window.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !is_openable_url(&url) {
+        return Err(format!("refusing to open {url}"));
+    }
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("xdg-open: {e}"))
+}
+
 // --- updates ----------------------------------------------------------------------
 
 /// What the UI needs to know about this build.
@@ -775,6 +812,10 @@ const SELFTEST_JS: &str = r#"
     hasSettings: !!document.getElementById('settings'),
     bodyMode: document.body.dataset.mode ?? null,
     saveHandler: !!document.getElementById('savehist')?.onclick,
+    linkGuard: document.documentElement.dataset.linkGuard === '1',
+    externalLinks: document.querySelectorAll('a[href^="https://"]').length,
+    repoLinks: [...document.querySelectorAll('a[href^="https://github.com/"]')]
+      .filter((a) => a.href.includes('WhatTFF/linux-ajazz-ak820-pro-app')).length,
     pill: text('pilltext'),
     mode: document.getElementById('modebanner')?.hidden === false ? 'banner' : 'no-banner',
     msg: text('msg'),
@@ -845,6 +886,8 @@ const SELFTEST_SETTINGS_JS: &str = r#"
     await inv('settings_set', { settings: { ...before, start_at_login: true, minimize_to_tray: true, sync_interval_secs: 30 } });
     const after = await inv('settings_get');
     const info = await inv('app_info');
+    // The link opener must never hand a non-web URL to the desktop.
+    const refused = await inv('open_url', { url: 'javascript:alert(1)' }).then(() => false, () => true);
     await inv('settings_set', { settings: before });
     report({
       ok: after.start_at_login === true && after.minimize_to_tray === true && after.sync_interval_secs === 30,
@@ -852,6 +895,7 @@ const SELFTEST_SETTINGS_JS: &str = r#"
       package: info.package,
       data_dir: info.data_dir,
       restored: (await inv('settings_get')).start_at_login === before.start_at_login,
+      refusedBadUrl: refused,
     });
   } catch (e) { report({ error: String(e) }); }
 })();
@@ -968,6 +1012,7 @@ pub fn run() {
             app_info,
             update_download,
             update_replace_appimage,
+            open_url,
             selftest_report,
         ])
         .run(tauri::generate_context!())
@@ -977,6 +1022,26 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_web_pages_can_be_opened() {
+        assert!(is_openable_url(
+            "https://github.com/WhatTFF/linux-ajazz-ak820-pro-app"
+        ));
+        assert!(is_openable_url("http://localhost:1234/x"));
+        for bad in [
+            "",
+            "file:///etc/passwd",
+            "javascript:alert(1)",
+            "-rf",
+            "https://",
+            "https://exa mple.com",
+            "https://example.com/\u{1b}[31m",
+            "ftp://example.com",
+        ] {
+            assert!(!is_openable_url(bad), "{bad:?} must be refused");
+        }
+    }
 
     #[test]
     fn history_ids_cannot_escape_the_directory() {

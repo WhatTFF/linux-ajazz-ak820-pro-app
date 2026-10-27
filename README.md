@@ -10,6 +10,10 @@ on plug-in, after suspend and after timezone changes.
 > Unofficial. Not affiliated with AJAZZ or Epomaker. Protocol recovered by the upstream project
 > from the vendor's own WebHID driver — see [PROTOCOL.md](PROTOCOL.md).
 
+**Source, issues and releases:** <https://github.com/WhatTFF/linux-ajazz-ak820-pro-app> ·
+[releases](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases) ·
+[issues](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/issues)
+
 ## Download
 
 Prebuilt x86_64 packages are attached to every

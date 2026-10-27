@@ -403,6 +403,11 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
           <p>If you prefer systemd over the app, the packages also install <code>ak820-clock.timer</code>; enable it with <code>systemctl --user enable --now ak820-clock.timer</code>. Use one or the other, not both.</p>
         </details>
         <details>
+          <summary>Updates, source code and bugs</summary>
+          <p>Every release is at <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases">github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases</a>. <strong>⚙ Settings → Updates</strong> checks that page, and on the AppImage it replaces the file in place; RPM and DEB builds download the package to <code>~/Downloads</code> and show the one-line install command.</p>
+          <p>The source is at <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app">github.com/WhatTFF/linux-ajazz-ak820-pro-app</a>; report bugs there, and include the output of <code>ak820ctl info</code> plus your keyboard's firmware version. Links open in your browser, never inside this window.</p>
+        </details>
+        <details>
           <summary>Is this safe?</summary>
           <p>It sends the same commands as the official driver to set the screen picture and the clock. It never touches firmware. Everything happens locally, and your files never leave your computer.</p>
         </details>
@@ -457,7 +462,10 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
     </form>
   </dialog>
 
-  <footer>Unofficial app, not affiliated with AJAZZ or Epomaker. Works with the AK820 Pro (USB 0C45:800A / 8009). UI derived from <a href="https://github.com/fromagge/ak820-screen">fromagge/ak820-screen</a> (MIT). <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app">Source on GitHub</a>.</footer>
+  <footer>Unofficial app, not affiliated with AJAZZ or Epomaker. Works with the AK820 Pro (USB 0C45:800A / 8009).
+    <strong><a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app">Source code and issues on GitHub</a></strong> ·
+    <a href="https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases">Downloads</a>.
+    UI derived from <a href="https://github.com/fromagge/ak820-screen">fromagge/ak820-screen</a> (MIT).</footer>
 </div>
 
 <script type="module" src="app.js"></script>
