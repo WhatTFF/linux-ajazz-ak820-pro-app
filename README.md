@@ -12,39 +12,75 @@ on plug-in, after suspend and after timezone changes.
 
 ## Status
 
-**Planning stage.** The architecture, porting strategy, autosync design, packaging and milestones
-live in [PLAN.md](PLAN.md). Nothing is implemented yet.
+Working on hardware (fw 1.07, PID `0c45:8009`):
 
-## Target
+- `ak820ctl` — `info`, `time`, `upload`, `builtin`, `history list|export|restore|clear`, `raw`
+- `ak820-studio` — Tauri window with the full upstream UI (animations, image/GIF/video, text,
+  draw, effects, adjust), native device access, on-disk history
+- clock autosync units (`systemd/`), udev rule, RPM spec, CI
 
-- Fedora 45 Workstation (GNOME / Wayland), RPM via COPR
-- Rust + Tauri v2, WebKitGTK frontend reusing the upstream UI under MIT
-- Direct `hidraw` access, no browser, no WebHID permission chooser
-- USB-C cable only — the 2.4 GHz dongle and Bluetooth cannot reach the screen
+Not done yet: video import fallback for missing codecs, GIPHY key in the keyring, tray icon,
+SQLite-backed history, Flatpak, release automation. See [PLAN.md](PLAN.md).
 
-## Planned layout
+## Install (from source, Fedora)
+
+```bash
+sudo dnf install gtk3-devel webkit2gtk4.1-devel libsoup3-devel librsvg2-devel openssl-devel \
+                 cargo rust gcc gcc-c++ pkgconf-pkg-config
+cargo build --release -p ak820-studio -p ak820-cli
+
+sudo install -Dm755 target/release/ak820-studio /usr/local/bin/
+sudo install -Dm755 target/release/ak820ctl /usr/local/bin/
+sudo install -Dm644 udev/70-ak820.rules /usr/lib/udev/rules.d/70-ak820.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Unplug and replug the keyboard after installing the rule. Then:
+
+```bash
+ak820ctl info                 # interfaces, firmware, frame limit
+ak820ctl upload cat.gif       # PNG / JPEG / WebP / GIF
+ak820ctl time                 # push the clock once
+./target/release/ak820-studio # the app
+```
+
+## Clock autosync
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp systemd/ak820-*.service systemd/ak820-clock.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now ak820-clock.timer
+systemctl --user enable ak820-resume.service
+```
+
+The timer pushes the clock every 60 s while the keyboard is connected (it exits silently when it
+is not), `ak820-resume.service` covers suspend/resume, and the udev rule starts
+`ak820-connect.service` on plug-in, which also re-uploads the newest history entry when
+`restore_on_connect` is enabled in `~/.local/share/ak820/settings.json`.
+
+## Layout
 
 ```
 crates/ak820-proto    packet framing, animation payload, RGB565, device info (pure, unit-tested)
 crates/ak820-device   sysfs interface discovery, hidraw I/O, retries, single-writer lock
-crates/ak820-store    SQLite history + settings, same on-disk format as the Python CLI
-crates/ak820-cli      ak820ctl: info / upload / time / builtin / history
-apps/desktop          Tauri v2 app + vendored upstream UI
-systemd/ udev/        autosync service + timer, device permissions
-packaging/            RPM spec, .desktop, AppStream metadata, icons
+crates/ak820-store    history on disk (same format as the Python CLI), settings
+crates/ak820-cli      ak820ctl
+apps/desktop          Tauri v2 app + vendored upstream UI (ui/ipc.js replaces WebHID)
+systemd/ udev/        autosync units and device permissions
+packaging/            RPM spec, .desktop, AppStream metadata
 ```
 
-## Permissions (once)
+## Tests
 
 ```bash
-sudo cp udev/70-ak820.rules /usr/lib/udev/rules.d/
-sudo udevadm control --reload && sudo udevadm trigger
+cargo test --workspace                       # pure logic, no hardware needed
+AK820_SELFTEST=1 cargo run -p ak820-studio   # UI smoke test: prints what loaded, then exits
+AK820_SELFTEST=upload cargo run -p ak820-studio  # also performs a real 3-frame upload
 ```
-
-Then unplug and replug the keyboard.
 
 ## Credits
 
 Upstream protocol research, web UI, generators and effects: **fromagge/ak820-screen** (MIT).
 This project vendors that UI and reimplements the transport, storage, autosync and packaging in
-Rust. See [NOTICE](NOTICE).
+Rust. See [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md).

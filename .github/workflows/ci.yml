@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: fedora:45
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            git gcc gcc-c++ make pkgconf-pkg-config \
+            rust cargo rustfmt clippy \
+            gtk3-devel webkit2gtk4.1-devel libsoup3-devel librsvg2-devel openssl-devel
+
+      - uses: actions/checkout@v4
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: Build release
+        run: cargo build --release -p ak820-studio -p ak820-cli
+
+      - name: UI smoke test
+        run: |
+          # The UI must load and reach the Rust side even with no keyboard attached.
+          AK820_SELFTEST=1 timeout 40 ./target/release/ak820-studio 2>&1 | tee selftest.log
+          grep -q '"tauri":true' selftest.log
+          grep -q '"generators":10' selftest.log

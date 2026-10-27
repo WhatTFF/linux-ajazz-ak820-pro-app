@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=AK820 Studio
+GenericName=Keyboard Screen Studio
+Comment=Put images, animations and text on the AJAZZ / Epomaker AK820 Pro screen
+Exec=ak820-studio
+Icon=io.github.whattff.Ak820Studio
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=keyboard;ak820;ajazz;epomaker;screen;gif;animation;
+StartupWMClass=ak820-studio
+X-GNOME-UsesNotifications=true

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.whattff.Ak820Studio</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>AK820 Studio</name>
+  <summary>Screen studio for the AJAZZ / Epomaker AK820 Pro keyboard</summary>
+
+  <description>
+    <p>
+      Put GIFs, images, video, text, drawings and procedural animations on the
+      0.85 inch 128×128 screen of the AJAZZ / Epomaker AK820 Pro, and keep the
+      keyboard clock in sync with your computer automatically.
+    </p>
+    <p>
+      Talks to the keyboard directly over USB (hidraw). No vendor driver, no
+      browser. The protocol was recovered by the ak820-screen project.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">ak820-studio.desktop</launchable>
+  <url type="homepage">https://github.com/WhatTFF/linux-ajazz-ak820-pro-app</url>
+  <url type="bugtracker">https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/issues</url>
+
+  <developer id="io.github.whattff">
+    <name>WhatTFF</name>
+  </developer>
+
+  <content_rating type="oars-1.1" />
+
+  <categories>
+    <category>Utility</category>
+    <category>Settings</category>
+  </categories>
+
+  <keywords>
+    <keyword>keyboard</keyword>
+    <keyword>AK820</keyword>
+    <keyword>AJAZZ</keyword>
+    <keyword>Epomaker</keyword>
+    <keyword>screen</keyword>
+    <keyword>animation</keyword>
+  </keywords>
+
+  <requires>
+    <display_length compare="ge">620</display_length>
+  </requires>
+</component>

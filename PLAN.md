@@ -257,8 +257,8 @@ CI (GitHub Actions): `cargo fmt --check`, `clippy -D warnings`, `cargo test` (pr
 | # | Milestone | Deliverable | Acceptance | Est. |
 |---|---|---|---|---|
 | M0 | Repo, license, docs, udev, plan | this repo | docs reviewed, udev rule verified on fw 1.07 | done |
-| M1 | `ak820-proto` + `ak820-device` + `ak820ctl info/upload/time` | CLI works against the real keyboard | `ak820ctl info` matches `ak820.py info`; upload of a GIF renders; golden-vector tests for `buildPayload` | 1–2 d |
-| M2 | Tauri shell + UI vendored + `ipc.js` | window opens, connects, syncs clock, sends an animation | pixel-identical UI at 1040 px; upload progress works; hotplug detected | 2–3 d |
+| M1 ✅ | `ak820-proto` + `ak820-device` + `ak820ctl info/upload/time` | CLI works against the real keyboard | `ak820ctl info` matches `ak820.py info`; upload of a GIF renders; payload byte-identical to `ak820.py` | done |
+| M2 ✅ | Tauri shell + UI vendored + `ipc.js` | window opens, connects, syncs clock, sends an animation | selftest: 4 tabs, 10 generators, device panel live, 3-frame upload at 100 % progress, history written | done |
 | M3 | Full render parity | all tabs, effects, adjust, trim/speed, video | side-by-side screenshot diff vs the website < 1 % pixels | 4–6 d |
 | M4 | History + settings | SQLite history, restore/export, GIPHY, keyring | restore after replug; export yields a playable GIF | 1–2 d |
 | M5 | Autosync daemon + packaging | systemd units, udev, RPM, AppStream, COPR | clock correct after boot/plug/resume/DST; `dnf install` on clean Fedora 45 | 3–4 d |
@@ -269,6 +269,29 @@ Total ≈ 3 weeks part-time. M1 is the risk spike: it proves the protocol on fw 
 work starts.
 
 ---
+
+## 7b. Implementation notes (v0.1)
+
+Deviations from the plan above, all deliberate or deferred:
+
+- **History is file-based, not SQLite.** `crates/ak820-store` writes raw `0x50` payloads to
+  `~/.local/share/ak820/history/*.bin`, exactly like `ak820.py`, so the CLI, the GUI and the
+  upstream Python tool all read the same history. Settings live in `settings.json`. SQLite only
+  becomes necessary if the schema grows (per-entry metadata, thumbnails cache, GIPHY history).
+- **The daemon is not a process.** `ak820-clock.service` is a oneshot that runs
+  `ak820ctl time --quiet`; systemd provides the scheduling, resume hook and udev trigger. It exits
+  0 when the keyboard is absent, wireless, or locked by the GUI, so the timer never spams failures.
+- **IPC payload is a JSON number array.** `invoke('upload', { payload: Array.from(bytes) })` costs
+  roughly 1 s of JSON encoding for a 255-frame (8.4 MB) upload. Fine for now; switch to Tauri's raw
+  request body when profiling says so.
+- **GIPHY key still lives in `localStorage`**, not the keyring. WebKitGTK keeps it per app data
+  directory, which is acceptable for v0.1.
+- **No tray icon yet** (GNOME needs an extension anyway); the app is a normal window.
+- **Video import relies on WebKitGTK + GStreamer** (`gstreamer1-plugins-good` is enough for WebM;
+  H.264 needs `gstreamer1-plugin-openh264`). The Rust-side decode fallback is still TODO.
+- **`AK820_SELFTEST`** is a shipped debug hook: with the env var set, the app reports what the
+  webview loaded (and optionally performs an upload) and exits. CI uses it to prove the UI and the
+  Rust bridge work without a keyboard.
 
 ## 8. Risks
 

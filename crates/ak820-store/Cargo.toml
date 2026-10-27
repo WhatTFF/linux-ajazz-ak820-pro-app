@@ -1,0 +1,15 @@
+[package]
+name = "ak820-store"
+description = "On-disk upload history and settings for AK820 tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ak820-proto.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+[lints.rust]
+unsafe_code = "forbid"
