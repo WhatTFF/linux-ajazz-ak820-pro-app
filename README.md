@@ -9,13 +9,16 @@ Native Linux app for the **AJAZZ / Epomaker AK820 Pro** keyboard screen — put 
 
 A Rust/Tauri rewrite of [fromagge/ak820-screen](https://github.com/fromagge/ak820-screen) with automatic clock sync. Unofficial — not affiliated with AJAZZ or Epomaker.
 
+> **This project is on hold.** A more native GTK version is being developed at
+> [WhatTFF/linux-ajazz-ak820-pro-gtk](https://github.com/WhatTFF/linux-ajazz-ak820-pro-gtk).
+
 ---
 
 ## Screenshots
 
-| Main window | Settings | Update available |
-| --- | --- | --- |
-| ![Main window](docs/screenshots/main.png) | ![Settings](docs/screenshots/settings.png) | ![Update](docs/screenshots/update.png) |
+| Main window | Settings |
+| --- | --- |
+| ![Main window](docs/screenshots/main.gif) | ![Settings](docs/screenshots/settings.png) |
 
 *Coming soon.*
 
@@ -113,9 +116,6 @@ Unplug and replug the keyboard after installing the rule.
 Upstream protocol research, web UI, generators and effects: **fromagge/ak820-screen** (MIT).  
 This project vendors that UI and reimplements the transport, storage, autosync and packaging in Rust.  
 See [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md).
-
-> **This project is on hold.** A more native GTK version is being developed at
-> [WhatTFF/linux-ajazz-ak820-pro-gtk](https://github.com/WhatTFF/linux-ajazz-ak820-pro-gtk).
 
 ---
 
