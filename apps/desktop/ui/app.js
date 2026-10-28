@@ -873,11 +873,12 @@ $('updact').onclick = async () => {
   btn.disabled = true;
   try {
     if (p.stage === 'ready') {
-      // Second press: the package is on disk, let polkit ask for the password.
-      $('updstate').textContent = 'Waiting for the password prompt…';
-      $('updstate').textContent = await invoke('update_install', { path: p.path });
-      btn.hidden = true;
+      // pkexec shows the password prompt, then the app restarts.
+      // invoke never returns: restart_app() exits this process.
+      $('updstate').textContent = 'Installing… the app restarts when done.';
+      $('updact').hidden = true;
       $('updcopy').hidden = true;
+      invoke('update_install', { path: p.path }).catch(() => {});
       return;
     }
     if (p.info.package === 'appimage') {

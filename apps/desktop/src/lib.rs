@@ -619,7 +619,8 @@ fn install_blocking(path: &Path) -> Result<String, String> {
         }
     })?;
     if out.status.success() {
-        Ok("Installed. Quit and start AK820 Studio again to use the new version.".into())
+        let _ = std::fs::remove_file(path);
+        Ok("Installed. The downloaded package was removed. The app restarts now.".into())
     } else if out.status.code() == Some(126) || out.status.code() == Some(127) {
         Err(format!(
             "The password prompt was dismissed, so nothing was installed. Run: {}",
