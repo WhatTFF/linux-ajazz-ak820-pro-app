@@ -14,16 +14,6 @@ A Rust/Tauri rewrite of [fromagge/ak820-screen](https://github.com/fromagge/ak82
 
 ---
 
-## Screenshots
-
-| Main window | Settings |
-| --- | --- |
-| ![Main window](docs/screenshots/main.gif) | ![Settings](docs/screenshots/settings.png) |
-
-*Coming soon.*
-
----
-
 ## Download
 
 Prebuilt x86_64 packages are attached to every [release](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases):
