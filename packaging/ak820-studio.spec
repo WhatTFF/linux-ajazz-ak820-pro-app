@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           ak820-studio
-Version:        0.1.3
+Version:        0.1.4
 Release:        1%{?dist}
 Summary:        Screen studio and clock sync for the AJAZZ / Epomaker AK820 Pro
 
@@ -78,5 +78,5 @@ echo "  systemctl --user enable ak820-resume.service"
 udevadm control --reload >/dev/null 2>&1 || :
 
 %changelog
-* Tue Oct 27 2026 WhatTFF <whattff@users.noreply.github.com> - 0.1.3-1
+* Tue Oct 27 2026 WhatTFF <whattff@users.noreply.github.com> - 0.1.4-1
 - Initial package

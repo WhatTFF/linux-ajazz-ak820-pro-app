@@ -21,10 +21,12 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Manager, State, WindowEvent};
 
-/// How often the background threads look at the world.
-const POLL: Duration = Duration::from_secs(2);
+/// How often the background threads look at the world when nothing changed.
+const POLL_IDLE: Duration = Duration::from_secs(30);
 /// Minimum sync interval the settings accept, to keep the USB bus quiet.
 const MIN_SYNC_INTERVAL: u64 = 10;
+/// Re-sync the clock this often while the app runs (window or tray).
+const CLOCK_EVERY: Duration = Duration::from_secs(12 * 3600);
 
 /// Shared, cheap state: just the cancel flag.
 #[derive(Default)]
@@ -787,6 +789,8 @@ fn thumb_data_url(payload: &[u8]) -> Option<String> {
 // --- background work ---------------------------------------------------------------
 
 /// Watch USB hotplug: tell the UI, sync the clock, restore the last image.
+/// Polls rarely (every 30 s): the keyboard almost never appears/disappears,
+/// so waking the CPU every 2 s just to check is wasted battery.
 fn watch_devices(app: tauri::AppHandle) {
     let mut last: Option<Presence> = None;
     loop {
@@ -813,22 +817,45 @@ fn watch_devices(app: tauri::AppHandle) {
                 }
             }
         }
-        std::thread::sleep(POLL);
+        std::thread::sleep(POLL_IDLE);
+    }
+}
+
+/// Sync the clock once at start, then every 12 hours while the app runs.
+/// Disabled when `sync_on_start` is off; the tray "Sync clock now" item and
+/// the settings dialog still work on demand.
+fn watch_clock(app: tauri::AppHandle, sync_on_start: bool) {
+    if !sync_on_start {
+        return;
+    }
+    loop {
+        std::thread::sleep(CLOCK_EVERY);
+        if ak820_device::presence().is_empty() {
+            continue;
+        }
+        match sync_background() {
+            Ok(_) => {
+                let _ = app.emit("clock-synced", ());
+            }
+            Err(e) => {
+                let _ = app.emit("clock-error", e);
+            }
+        }
     }
 }
 
 /// Re-sync every `sync_interval_secs` while the app runs (window or tray).
-fn watch_interval(app: tauri::AppHandle) {
+/// Only spawned when the user opted in (default `0` = off), so the default
+/// build never re-reads settings.json every second.
+fn watch_interval(app: tauri::AppHandle, interval_secs: u64) {
+    if interval_secs < MIN_SYNC_INTERVAL {
+        return;
+    }
     let mut elapsed = 0u64;
     loop {
         std::thread::sleep(Duration::from_secs(1));
-        let interval = Settings::load().sync_interval_secs;
-        if interval < MIN_SYNC_INTERVAL {
-            elapsed = 0;
-            continue;
-        }
         elapsed += 1;
-        if elapsed < interval {
+        if elapsed < interval_secs {
             continue;
         }
         elapsed = 0;
@@ -1072,33 +1099,39 @@ pub fn run() {
 
             let watcher = handle.clone();
             std::thread::spawn(move || watch_devices(watcher));
-            let interval = handle.clone();
-            std::thread::spawn(move || watch_interval(interval));
 
+            // Clock: sync at start, then every 12 h. The interval watcher
+            // only runs when the user explicitly set a non-zero interval.
             if settings.sync_on_start {
-                let quit_after = settings.quit_after_start_sync;
-                let handle = handle.clone();
+                let start_handle = handle.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_millis(600));
                     if ak820_device::presence().is_empty() {
                         // Nothing to do now; the watcher covers a later plug-in.
-                        if quit_after {
-                            handle.exit(0);
+                        if settings.quit_after_start_sync {
+                            start_handle.exit(0);
                         }
                         return;
                     }
                     match sync_background() {
                         Ok(_) => {
-                            let _ = handle.emit("clock-synced", ());
+                            let _ = start_handle.emit("clock-synced", ());
                         }
                         Err(e) => {
-                            let _ = handle.emit("clock-error", e);
+                            let _ = start_handle.emit("clock-error", e);
                         }
                     }
-                    if quit_after {
-                        handle.exit(0);
+                    if settings.quit_after_start_sync {
+                        start_handle.exit(0);
                     }
                 });
+                let clock = handle.clone();
+                std::thread::spawn(move || watch_clock(clock, settings.sync_on_start));
+            }
+
+            if settings.sync_interval_secs >= MIN_SYNC_INTERVAL {
+                let interval = handle.clone();
+                std::thread::spawn(move || watch_interval(interval, settings.sync_interval_secs));
             }
 
             if std::env::var_os("AK820_SELFTEST").is_some() {

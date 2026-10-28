@@ -940,15 +940,27 @@ $('updcheck').onclick = () => checkUpdates().catch((e) => {
   $('updstatus').textContent = `Could not check for updates: ${e.message ?? e}`;
 });
 
-// Automatic: once a few seconds after start, then hourly (the throttle decides).
-// Exposed so the smoke test can drive the dialog without hitting the network.
-window.__ak820 = { ...window.__ak820, newer, showUpdate: openUpdateDialog, checkUpdates };
+// Automatic: once a few seconds after start (cold open), then hourly
+// (the 12-hour throttle decides whether to actually ask GitHub). Also check
+// whenever the window becomes visible again — that covers restoring from the
+// tray or minimizing and re-opening.
+let lastVisibleCheck = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible'
+      && Date.now() - lastVisibleCheck > 5000) {
+    lastVisibleCheck = Date.now();
+    checkUpdates().catch(() => {});
+  }
+});
 
 function autoCheck() {
   checkUpdates({ auto: true }).catch(() => {});
 }
 setTimeout(autoCheck, 4000);
 setInterval(autoCheck, 3600 * 1000);
+
+// Exposed so the smoke test can drive the dialog without hitting the network.
+window.__ak820 = { ...window.__ak820, newer, showUpdate: openUpdateDialog, checkUpdates };
 
 // --- start ----------------------------------------------------------------------------
 buildGens();

@@ -58,9 +58,10 @@ Working on hardware (fw 1.07, PID `0c45:8009`):
   last image on plug-in
 - **Tray icon**: open, sync now, quit
 - **In-app updates**: checks GitHub releases quietly every 12 hours (toggleable) and pops up a
-  window when something newer exists. The AppImage replaces itself in place; RPM/DEB download to
-  `~/Downloads`, then either install through the desktop's polkit password prompt or show the exact
-  `sudo dnf`/`sudo apt` command to copy. "Later" silences that version until the next one.
+  window when something newer exists. Also checks whenever the app opens — cold start or restored
+  from the tray — so you never miss a version. The AppImage replaces itself in place; RPM/DEB
+  download to `~/Downloads`, then either install through the desktop's polkit password prompt or
+  show the exact `sudo dnf`/`sudo apt` command to copy. "Later" silences that version until the next one.
 - **Dongle-aware**: on the 2.4 GHz dongle the clock still syncs and the UI explains that pictures
   need the cable; designs can always be saved to history
 - clock autosync units (`systemd/`), udev rule, RPM spec, CI, deb/rpm/AppImage releases
@@ -94,8 +95,12 @@ ak820ctl time                 # push the clock once
 
 Two ways, pick one:
 
-- **In the app** (default): ⚙ Settings → sync on start, sync on plug-in, and an optional
-  "re-sync every N seconds" while the app runs, including when it sits in the tray.
+- **In the app** (default): ⚙ Settings → sync on start, sync on plug-in, restore
+  the last image on plug-in. The clock is pushed when the app opens (cold start
+  or restored from the tray), then every 12 hours while it runs. An optional
+  "re-sync every N seconds" is also available for power users — it's off by
+  default because waking the CPU every second to check the keyboard costs
+  battery for no benefit.
 - **With systemd**: the units below, for machines where the app is not running.
 
 ```bash
