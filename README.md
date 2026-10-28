@@ -17,7 +17,7 @@ A Rust/Tauri rewrite of [fromagge/ak820-screen](https://github.com/fromagge/ak82
 | --- | --- | --- |
 | ![Main window](docs/screenshots/main.png) | ![Settings](docs/screenshots/settings.png) | ![Update](docs/screenshots/update.png) |
 
-*Placeholder screenshots in `docs/screenshots/` — replace with real ones from your desktop.*
+*Coming soon.*
 
 ---
 
@@ -113,6 +113,9 @@ Unplug and replug the keyboard after installing the rule.
 Upstream protocol research, web UI, generators and effects: **fromagge/ak820-screen** (MIT).  
 This project vendors that UI and reimplements the transport, storage, autosync and packaging in Rust.  
 See [NOTICE](NOTICE) and [docs/UPSTREAM.md](docs/UPSTREAM.md).
+
+> **This project is on hold.** A more native GTK version is being developed at
+> [WhatTFF/linux-ajazz-ak820-pro-gtk](https://github.com/WhatTFF/linux-ajazz-ak820-pro-gtk).
 
 ---
 
