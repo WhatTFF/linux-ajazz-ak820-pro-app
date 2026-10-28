@@ -862,29 +862,37 @@ function openUpdateDialog(release, info) {
   const act = $('updact');
   act.hidden = !asset;
   act.disabled = false;
-  act.textContent = info.package === 'appimage' ? 'Update and restart' : 'Download and install';
+  act.textContent = info.package === 'appimage' ? 'Update' : 'Download and install';
+  act.onclick = updateActOnClick;
   $('upd').showModal();
 }
 
-$('updact').onclick = async () => {
+async function updateActOnClick() {
   const p = updPending;
   if (!p?.asset) return;
   const btn = $('updact');
   btn.disabled = true;
   try {
     if (p.stage === 'ready') {
-      // pkexec shows the password prompt, then the app restarts.
-      // invoke never returns: restart_app() exits this process.
-      $('updstate').textContent = 'Installing… the app restarts when done.';
-      $('updact').hidden = true;
-      $('updcopy').hidden = true;
-      invoke('update_install', { path: p.path }).catch(() => {});
+      // Install the downloaded package, then offer a restart button.
+      $('updstate').textContent = 'Installing…';
+      const msg = await invoke('update_install', { path: p.path });
+      $('updstate').textContent = msg;
+      btn.textContent = 'Restart now';
+      btn.onclick = () => invoke('restart_app').catch(() => {});
+      btn.hidden = false;
+      btn.disabled = false;
       return;
     }
     if (p.info.package === 'appimage') {
-      $('updstate').textContent = 'Replacing this AppImage and restarting…';
+      $('updstate').textContent = 'Replacing this AppImage…';
       await invoke('update_replace_appimage', { url: p.asset.browser_download_url });
-      // Never reached: restart_app exits this process.
+      $('updstate').textContent = 'AppImage replaced. Restart to use the new version.';
+      btn.textContent = 'Restart now';
+      btn.onclick = () => invoke('restart_app').catch(() => {});
+      btn.hidden = false;
+      btn.disabled = false;
+      return;
     }
     $('updstate').textContent = 'Downloading…';
     const done = await invoke('update_download', {
@@ -903,7 +911,7 @@ $('updact').onclick = async () => {
   } finally {
     btn.disabled = false;
   }
-};
+}
 
 $('updcopy').onclick = async () => {
   const text = $('updcmd').textContent;

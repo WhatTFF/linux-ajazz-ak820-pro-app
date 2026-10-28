@@ -469,28 +469,6 @@ fn app_info() -> AppInfo {
     }
 }
 
-/// Re-execute this binary so an updated package / AppImage takes effect.
-/// Never returns: spawns the new process, then exits this one.
-fn restart_app() -> ! {
-    let exe = match std::env::current_exe() {
-        Ok(exe) => exe,
-        Err(e) => {
-            eprintln!("cannot get current exe for restart: {e}");
-            std::process::exit(1);
-        }
-    };
-    if std::process::Command::new(&exe)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .is_err()
-    {
-        eprintln!("failed to spawn {exe:?} for restart");
-    }
-    std::process::exit(0);
-}
-
 /// `~/Downloads`, or the data directory when there is none.
 fn download_dir() -> PathBuf {
     std::env::var_os("XDG_DOWNLOAD_DIR")
@@ -584,18 +562,12 @@ fn is_installable(path: &Path) -> bool {
 
 /// Install a downloaded package through polkit, which shows the desktop's own
 /// password prompt. The terminal command stays available in the UI either way.
+/// Returns when done; the caller decides when to restart.
 #[tauri::command]
 async fn update_install(path: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let result = install_blocking(Path::new(&path));
-        if result.is_ok() {
-            // Installed successfully: restart so the new version takes effect.
-            restart_app();
-        }
-        result
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || install_blocking(Path::new(&path)))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 fn install_blocking(path: &Path) -> Result<String, String> {
@@ -620,7 +592,7 @@ fn install_blocking(path: &Path) -> Result<String, String> {
     })?;
     if out.status.success() {
         let _ = std::fs::remove_file(path);
-        Ok("Installed. The downloaded package was removed. The app restarts now.".into())
+        Ok("Installed. The downloaded package was removed. Restart the app to use the new version.".into())
     } else if out.status.code() == Some(126) || out.status.code() == Some(127) {
         Err(format!(
             "The password prompt was dismissed, so nothing was installed. Run: {}",
@@ -653,8 +625,29 @@ fn update_replace_appimage(url: String) -> Result<(), String> {
             .map_err(|e| format!("{}: {e}", tmp.display()))?;
     }
     std::fs::rename(&tmp, &current).map_err(|e| format!("{}: {e}", current.display()))?;
-    // Replaced in place: restart so the new AppImage takes effect.
-    restart_app();
+    Ok(())
+}
+
+/// Restart the app by re-executing this binary. Never returns successfully.
+#[tauri::command]
+fn restart_app() -> Result<(), String> {
+    let exe = match std::env::current_exe() {
+        Ok(exe) => exe,
+        Err(e) => {
+            eprintln!("cannot get current exe for restart: {e}");
+            return Err(format!("{e}"));
+        }
+    };
+    if std::process::Command::new(&exe)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .is_err()
+    {
+        return Err("failed to spawn new process".into());
+    }
+    std::process::exit(0);
 }
 
 /// Where the autostart entry lives.
@@ -1217,6 +1210,7 @@ pub fn run() {
             update_download,
             update_install,
             update_replace_appimage,
+            restart_app,
             open_url,
             selftest_report,
         ])
