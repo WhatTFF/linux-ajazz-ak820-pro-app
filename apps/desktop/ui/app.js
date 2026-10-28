@@ -747,8 +747,46 @@ async function fillSettings() {
   if (info) {
     $('datadir').textContent = info.data_dir;
     $('appver').textContent = `v${info.version} (${info.package})`;
+    const kind = info.package;
+    let cmd;
+    if (kind === 'deb') cmd = 'sudo apt-get remove -y ak820-studio';
+    else if (kind === 'rpm') cmd = 'sudo dnf remove -y ak820-studio';
+    else if (kind === 'appimage') cmd = 'rm "AK820 Studio.AppImage"  # delete the AppImage file';
+    else cmd = '# Manual removal:\n#   rm /usr/local/bin/ak820-studio /usr/local/bin/ak820ctl\n#   sudo rm -f /usr/lib/systemd/user/ak820-*.service\n#   sudo rm -f /usr/lib/udev/rules.d/70-ak820.rules\n#   sudo rm -f "/usr/share/applications/AK820 Studio.desktop"\n#   sudo rm -rf /usr/share/icons/hicolor/*/apps/ak820-studio.png\n#   rm -rf ~/.local/share/ak820';
+    $('uncmdwrap').textContent = cmd;
   }
 }
+
+$('uncopy').onclick = async () => {
+  const text = $('uncmdwrap').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    $('unstatus').textContent = 'Command copied. Paste it into a terminal.';
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents($('uncmdwrap'));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    $('unstatus').textContent = 'Select the command and press Ctrl+C.';
+  }
+};
+
+$('uninstall').onclick = async () => {
+  const btn = $('uninstall');
+  btn.disabled = true;
+  try {
+    const msg = await invoke('uninstall_app');
+    $('unstatus').textContent = msg;
+    if (msg.toLowerCase().includes('uninstalled') || msg.toLowerCase().includes('deleted')) {
+      setTimeout(() => invoke('restart_app').catch(() => {}), 1500);
+    }
+  } catch (e) {
+    $('unstatus').textContent = `Uninstall failed: ${e.message ?? e}`;
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 $('opts').onclick = async () => {
   try { await fillSettings(); } catch (e) { console.warn(e); }

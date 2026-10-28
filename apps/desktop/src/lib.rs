@@ -628,6 +628,47 @@ fn update_replace_appimage(url: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Uninstall AK820 Studio through polkit (RPM/DEB) or by deleting the file (AppImage).
+#[tauri::command]
+async fn uninstall_app() -> Result<String, String> {
+    let kind = package_kind();
+    match kind.as_str() {
+        "deb" | "rpm" => {
+            tauri::async_runtime::spawn_blocking(move || {
+                let mut cmd = std::process::Command::new("pkexec");
+                let cmd = match kind.as_str() {
+                    "deb" => cmd.args(["apt-get", "remove", "-y", "ak820-studio"]),
+                    _ => cmd.args(["dnf", "remove", "-y", "ak820-studio"]),
+                };
+                let out = cmd.output().map_err(|e| format!("pkexec: {e}"))?;
+                if out.status.success() {
+                    Ok("Uninstalled. The app will close now.".into())
+                } else {
+                    let err = String::from_utf8_lossy(&out.stderr);
+                    Err(format!(
+                        "Uninstall failed ({}). {}",
+                        out.status,
+                        err.lines().rev().take(4).collect::<Vec<_>>().join("\n")
+                    ))
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        }
+        "appimage" => {
+            let current = std::env::var_os("APPIMAGE")
+                .map(PathBuf::from)
+                .ok_or("this is not an AppImage build")?;
+            std::fs::remove_file(&current).map_err(|e| format!("{}: {e}", current.display()))?;
+            Ok("AppImage deleted. Quit the app now.".into())
+        }
+        _ => Err(
+            "This build was not installed from a package. Use the command below to remove it manually."
+                .into(),
+        ),
+    }
+}
+
 /// Restart the app by re-executing this binary. Never returns successfully.
 #[tauri::command]
 fn restart_app() -> Result<(), String> {
@@ -1211,6 +1252,7 @@ pub fn run() {
             update_install,
             update_replace_appimage,
             restart_app,
+            uninstall_app,
             open_url,
             selftest_report,
         ])
