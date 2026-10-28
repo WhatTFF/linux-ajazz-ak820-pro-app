@@ -736,9 +736,6 @@ const SETTING_BOXES = {
   start_minimized: 'set-startmin',
   minimize_to_tray: 'set-tray',
   sync_on_start: 'set-syncstart',
-  quit_after_start_sync: 'set-quitafter',
-  sync_on_connect: 'set-syncconnect',
-  restore_on_connect: 'set-restore',
   autosync_clock: 'set-autosync',
   check_updates: 'set-updcheck',
 };
@@ -746,7 +743,6 @@ const SETTING_BOXES = {
 async function fillSettings() {
   const s = await invoke('settings_get');
   for (const [key, id] of Object.entries(SETTING_BOXES)) $(id).checked = !!s[key];
-  $('set-interval').value = s.sync_interval_secs ?? 0;
   const info = await invoke('app_info').catch(() => null);
   if (info) {
     $('datadir').textContent = info.data_dir;
@@ -764,7 +760,6 @@ $('settingsform').addEventListener('submit', async (e) => {
   if (e.submitter?.value === 'cancel') { $('settings').close(); return; }
   const s = await invoke('settings_get');
   for (const [key, id] of Object.entries(SETTING_BOXES)) s[key] = $(id).checked;
-  s.sync_interval_secs = Math.max(0, Math.min(3600, Math.round(+$('set-interval').value || 0)));
   try {
     await invoke('settings_set', { settings: s });
     $('settings').close();
@@ -886,11 +881,9 @@ $('updact').onclick = async () => {
       return;
     }
     if (p.info.package === 'appimage') {
-      $('updstate').textContent = 'Downloading and replacing this AppImage…';
+      $('updstate').textContent = 'Replacing this AppImage and restarting…';
       await invoke('update_replace_appimage', { url: p.asset.browser_download_url });
-      $('updstate').textContent = 'Updated. Quit and start the app again to use the new version.';
-      btn.hidden = true;
-      return;
+      // Never reached: restart_app exits this process.
     }
     $('updstate').textContent = 'Downloading…';
     const done = await invoke('update_download', {

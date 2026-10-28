@@ -439,12 +439,7 @@ sudo udevadm control --reload && sudo udevadm trigger</code></pre>
       <fieldset>
         <legend>Clock</legend>
         <label class="check"><input type="checkbox" id="set-syncstart"> Sync the clock when the app starts</label>
-        <label class="check"><input type="checkbox" id="set-quitafter"> …and quit immediately after that sync</label>
-        <label class="check"><input type="checkbox" id="set-syncconnect"> Sync the clock when the keyboard is plugged in</label>
-        <label class="check"><input type="checkbox" id="set-restore"> Put the newest history entry back on plug-in</label>
-        <label class="inline">Re-sync while the app runs every
-          <input type="number" id="set-interval" min="0" max="3600" step="5" value="0"> seconds (0 = off)
-        </label>
+        <p class="hint" style="margin:6px 0 0">The app pushes the clock when it opens (cold start or restored from the tray), then again every 12 hours while it runs.</p>
       </fieldset>
 
       <fieldset>

@@ -54,8 +54,8 @@ Working on hardware (fw 1.07, PID `0c45:8009`):
 - `ak820-studio` — Tauri window with the full upstream UI (animations, image/GIF/video, text,
   draw, effects, adjust), native device access, on-disk history
 - **Settings window**: start at login, start hidden in the tray, keep running in the tray,
-  sync on start (optionally quit right after), sync on plug-in, re-sync on a timer, restore the
-  last image on plug-in
+  sync on start (then every 12 h while running), sync on plug-in, restore the last image
+  on plug-in
 - **Tray icon**: open, sync now, quit
 - **In-app updates**: checks GitHub releases quietly every 12 hours (toggleable) and pops up a
   window when something newer exists. Also checks whenever the app opens — cold start or restored
@@ -95,12 +95,9 @@ ak820ctl time                 # push the clock once
 
 Two ways, pick one:
 
-- **In the app** (default): ⚙ Settings → sync on start, sync on plug-in, restore
-  the last image on plug-in. The clock is pushed when the app opens (cold start
-  or restored from the tray), then every 12 hours while it runs. An optional
-  "re-sync every N seconds" is also available for power users — it's off by
-  default because waking the CPU every second to check the keyboard costs
-  battery for no benefit.
+- **In the app** (default): ⚙ Settings → sync on start. The clock is pushed when
+  the app opens (cold start or restored from the tray), then every 12 hours while
+  it runs.
 - **With systemd**: the units below, for machines where the app is not running.
 
 ```bash
