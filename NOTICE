@@ -1,19 +1,32 @@
 # NOTICE
 
+AK820 Studio
+Copyright (C) 2026 WhatTFF
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the **GNU General Public License, version 3.0 only**. The full text
+is in [LICENSE](LICENSE). There is no warranty, to the extent permitted by law.
+
+---
+
+## Upstream work
+
 This project is a derivative work of **ak820-screen** by fromagge:
 
     https://github.com/fromagge/ak820-screen
     commit 9030b81058fed04ce71ccd1a056118bcf0cbbb17 (2026-10-21)
     License: MIT
 
-Reused verbatim or near-verbatim:
+The following parts are reused verbatim or near-verbatim, and remain available
+under the MIT licence reproduced below:
 
 - `PROTOCOL.md` — protocol documentation (copied, with a status note added at the top)
 - `udev/70-ak820.rules` — device permission rule
 - the entire web UI under `apps/desktop/ui/` (HTML, CSS, `app.js`, `gen.js`, `fx.js`,
   and `ak820.js` up to its transport layer), including all generators and effects
 
-Reimplemented in Rust by this project:
+Reimplemented in Rust by this project and distributed under the GPL as part of
+the combined work:
 
 - HID transport (discovery, report sizing, chunking, retries, locking)
 - animation payload packing/unpacking (validated against the upstream JavaScript byte-for-byte)
@@ -23,7 +36,33 @@ Reimplemented in Rust by this project:
 `ak820.py` from upstream was used as a behavioural reference for the transport and CLI; it is not
 vendored here.
 
-Upstream is MIT-licensed; the full license text and both copyright lines are in `LICENSE`.
+### MIT licence for the upstream portions
+
+Copyright (c) 2026 fromagge (upstream ak820-screen: protocol research, web UI, generators, effects)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+MIT is compatible with the GPL: the combined work as a whole is distributed
+under GPL-3.0-only, and the files listed above keep their MIT terms available.
+Keep this file with any copy or redistribution of the source.
+
+---
 
 Not affiliated with AJAZZ, Epomaker, or Sonix. "AJAZZ", "Epomaker" and "AK820" are trademarks of
 their respective owners and are used only to describe compatibility.

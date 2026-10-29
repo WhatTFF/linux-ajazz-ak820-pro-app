@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.whattff.Ak820Studio</id>
   <metadata_license>MIT</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>GPL-3.0-only</project_license>
   <name>AK820 Studio</name>
   <summary>Screen studio for the AJAZZ / Epomaker AK820 Pro keyboard</summary>
 

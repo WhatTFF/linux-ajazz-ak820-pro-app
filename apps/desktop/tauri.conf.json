@@ -35,7 +35,8 @@
     "category": "Utility",
     "shortDescription": "Screen studio for the AJAZZ / Epomaker AK820 Pro keyboard",
     "longDescription": "Put GIFs, images, video, text, drawings and procedural animations on the AK820 Pro's 128x128 screen, and keep its clock in sync automatically.",
-    "license": "MIT",
+    "license": "GPL-3.0-only",
+    "licenseFile": "../../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -52,7 +53,8 @@
           "/usr/lib/systemd/user/ak820-clock.service": "../../systemd/ak820-clock.service",
           "/usr/lib/systemd/user/ak820-clock.timer": "../../systemd/ak820-clock.timer",
           "/usr/lib/systemd/user/ak820-connect.service": "../../systemd/ak820-connect.service",
-          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service"
+          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service",
+          "/usr/share/doc/ak820-studio/NOTICE": "../../NOTICE"
         },
         "postInstallScript": "../../packaging/linux/postinst.sh"
       },
@@ -67,7 +69,8 @@
           "/usr/lib/systemd/user/ak820-clock.service": "../../systemd/ak820-clock.service",
           "/usr/lib/systemd/user/ak820-clock.timer": "../../systemd/ak820-clock.timer",
           "/usr/lib/systemd/user/ak820-connect.service": "../../systemd/ak820-connect.service",
-          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service"
+          "/usr/lib/systemd/user/ak820-resume.service": "../../systemd/ak820-resume.service",
+          "/usr/share/doc/ak820-studio/NOTICE": "../../NOTICE"
         },
         "postInstallScript": "../../packaging/linux/postinst.sh"
       },

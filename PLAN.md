@@ -235,7 +235,7 @@ justify the 60 s timer vs 15 min.
 - **RPM** via COPR (`packaging/ak820-studio.spec`), `BuildRequires: webkit2gtk4.1-devel,
   libsoup3-devel, librsvg2-devel, openssl-devel`, `Requires: webkit2gtk4.1`.
 - `.desktop` with `StartupWMClass=ak820-studio`, AppStream `io.github.whattff.Ak820Studio.metainfo.xml`,
-  hicolor icons, GPL-compatible MIT license field.
+  hicolor icons, GPL-3.0-only license field.
 - `udev/70-ak820.rules` shipped but **not auto-installed** by RPM: `%post` prints the one-liner
   (`cp` + `udevadm control --reload`) instead of silently touching `/etc/udev`. Alternative:
   package as `/usr/lib/udev/rules.d/70-ak820.rules` — allowed and cleaner; do that.

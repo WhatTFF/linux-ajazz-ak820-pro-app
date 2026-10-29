@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/actions/workflows/ci.yml/badge.svg)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/actions/workflows/ci.yml)
 [![Release v1.0.0](https://img.shields.io/github/v/release/WhatTFF/linux-ajazz-ak820-pro-app?include_prereleases&label=release&color=ff6a2b)](https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 [![Platform: Linux x86_64](https://img.shields.io/badge/platform-Linux%20x86_64-lightgrey.svg)](#download)
 
 Native Linux app for the **AJAZZ / Epomaker AK820 Pro** keyboard screen — put GIFs, images, video, text, drawings and procedural animations on the 0.85" 128×128 screen, then forget about it.
@@ -108,6 +108,28 @@ sudo udevadm control --reload && sudo udevadm trigger
 ```
 
 Unplug and replug the keyboard after installing the rule.
+
+---
+
+## License
+
+AK820 Studio is free software under the **GNU General Public License, version
+3.0 only**. See [LICENSE](LICENSE) for the full text.
+
+You can read it, build it, change it, and share it. If you distribute a changed
+version, it has to stay under the same licence, with the source available. That
+is deliberate: the whole point of this app is that you can check what it does
+to a keyboard you own, and a closed fork would defeat that. It also means
+nobody can take this code, add ads or an account system, and ship it as the
+same app.
+
+Parts of the tree — the vendored web UI, `PROTOCOL.md`, and the udev rule —
+come from the MIT-licensed **ak820-screen** project and stay available under
+MIT terms. See [NOTICE](NOTICE).
+
+The name and icon are not part of that grant — a modified build is not AK820
+Studio and should not be presented as it. Not affiliated with AJAZZ or
+Epomaker.
 
 ---
 

@@ -5,7 +5,7 @@ Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Screen studio and clock sync for the AJAZZ / Epomaker AK820 Pro
 
-License:        MIT
+License:        GPL-3.0-only
 URL:            https://github.com/WhatTFF/linux-ajazz-ak820-pro-app
 Source0:        %{url}/archive/v%{version}/linux-ajazz-ak820-pro-app-%{version}.tar.gz
 

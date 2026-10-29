@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/WhatTFF/linux-ajazz-ak820-pro-app/security/advisories/new
+    about: Report privately, not in a public issue. See SECURITY.md.
+  - name: Setup and hardware help
+    url: https://github.com/WhatTFF/linux-ajazz-ak820-pro-app#quick-start
+    about: The README covers the udev rule, wired vs dongle, and clock autosync.
